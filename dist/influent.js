@@ -45,7 +45,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":6}],2:[function(require,module,exports){
+},{"inherits-js":9}],2:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -70,6 +70,7 @@ exports.TimeoutHttpError = TimeoutHttpError;
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
+    debug        = require("debug"),
     EventEmitter = require("events").EventEmitter,
     Http;
 
@@ -105,8 +106,17 @@ Http = inherits( EventEmitter,
                 "emergency"
             ].reduce(
                 function(memo, level) {
+                    var logger;
+
+                    logger = debug("hurl:" + level);
+
                     memo[level] = function() {
-                        self.emit.apply(self, ["log:" + level].concat([].slice.call(arguments)));
+                        var args;
+
+                        args = Array.prototype.slice.call(arguments);
+
+                        logger.apply(null, args)
+                        self.emit.apply(self, ["log:" + level].concat(args));
                     };
 
                     return memo;
@@ -160,7 +170,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":4,"assert":"assert","events":"events","inherits-js":6}],4:[function(require,module,exports){
+},{"./utils":4,"assert":"assert","debug":6,"events":"events","inherits-js":9}],4:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -418,6 +428,502 @@ XhrHttp = Http.extend(
 exports.XhrHttp = XhrHttp;
 
 },{"./error":1,"./error/timeout":2,"./http":3,"./utils":4,"querystring":"querystring"}],6:[function(require,module,exports){
+
+/**
+ * This is the web browser implementation of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = require('./debug');
+exports.log = log;
+exports.formatArgs = formatArgs;
+exports.save = save;
+exports.load = load;
+exports.useColors = useColors;
+exports.storage = 'undefined' != typeof chrome
+               && 'undefined' != typeof chrome.storage
+                  ? chrome.storage.local
+                  : localstorage();
+
+/**
+ * Colors.
+ */
+
+exports.colors = [
+  'lightseagreen',
+  'forestgreen',
+  'goldenrod',
+  'dodgerblue',
+  'darkorchid',
+  'crimson'
+];
+
+/**
+ * Currently only WebKit-based Web Inspectors, Firefox >= v31,
+ * and the Firebug extension (any Firefox version) are known
+ * to support "%c" CSS customizations.
+ *
+ * TODO: add a `localStorage` variable to explicitly enable/disable colors
+ */
+
+function useColors() {
+  // is webkit? http://stackoverflow.com/a/16459606/376773
+  return ('WebkitAppearance' in document.documentElement.style) ||
+    // is firebug? http://stackoverflow.com/a/398120/376773
+    (window.console && (console.firebug || (console.exception && console.table))) ||
+    // is firefox >= v31?
+    // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+    (navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31);
+}
+
+/**
+ * Map %j to `JSON.stringify()`, since no Web Inspectors do that by default.
+ */
+
+exports.formatters.j = function(v) {
+  return JSON.stringify(v);
+};
+
+
+/**
+ * Colorize log arguments if enabled.
+ *
+ * @api public
+ */
+
+function formatArgs() {
+  var args = arguments;
+  var useColors = this.useColors;
+
+  args[0] = (useColors ? '%c' : '')
+    + this.namespace
+    + (useColors ? ' %c' : ' ')
+    + args[0]
+    + (useColors ? '%c ' : ' ')
+    + '+' + exports.humanize(this.diff);
+
+  if (!useColors) return args;
+
+  var c = 'color: ' + this.color;
+  args = [args[0], c, 'color: inherit'].concat(Array.prototype.slice.call(args, 1));
+
+  // the final "%c" is somewhat tricky, because there could be other
+  // arguments passed either before or after the %c, so we need to
+  // figure out the correct index to insert the CSS into
+  var index = 0;
+  var lastC = 0;
+  args[0].replace(/%[a-z%]/g, function(match) {
+    if ('%%' === match) return;
+    index++;
+    if ('%c' === match) {
+      // we only are interested in the *last* %c
+      // (the user may have provided their own)
+      lastC = index;
+    }
+  });
+
+  args.splice(lastC, 0, c);
+  return args;
+}
+
+/**
+ * Invokes `console.log()` when available.
+ * No-op when `console.log` is not a "function".
+ *
+ * @api public
+ */
+
+function log() {
+  // this hackery is required for IE8/9, where
+  // the `console.log` function doesn't have 'apply'
+  return 'object' === typeof console
+    && console.log
+    && Function.prototype.apply.call(console.log, console, arguments);
+}
+
+/**
+ * Save `namespaces`.
+ *
+ * @param {String} namespaces
+ * @api private
+ */
+
+function save(namespaces) {
+  try {
+    if (null == namespaces) {
+      exports.storage.removeItem('debug');
+    } else {
+      exports.storage.debug = namespaces;
+    }
+  } catch(e) {}
+}
+
+/**
+ * Load `namespaces`.
+ *
+ * @return {String} returns the previously persisted debug modes
+ * @api private
+ */
+
+function load() {
+  var r;
+  try {
+    r = exports.storage.debug;
+  } catch(e) {}
+  return r;
+}
+
+/**
+ * Enable namespaces listed in `localStorage.debug` initially.
+ */
+
+exports.enable(load());
+
+/**
+ * Localstorage attempts to return the localstorage.
+ *
+ * This is necessary because safari throws
+ * when a user disables cookies/localstorage
+ * and you attempt to access it.
+ *
+ * @return {LocalStorage}
+ * @api private
+ */
+
+function localstorage(){
+  try {
+    return window.localStorage;
+  } catch (e) {}
+}
+
+},{"./debug":7}],7:[function(require,module,exports){
+
+/**
+ * This is the common logic for both the Node.js and web browser
+ * implementations of `debug()`.
+ *
+ * Expose `debug()` as the module.
+ */
+
+exports = module.exports = debug;
+exports.coerce = coerce;
+exports.disable = disable;
+exports.enable = enable;
+exports.enabled = enabled;
+exports.humanize = require('ms');
+
+/**
+ * The currently active debug mode names, and names to skip.
+ */
+
+exports.names = [];
+exports.skips = [];
+
+/**
+ * Map of special "%n" handling functions, for the debug "format" argument.
+ *
+ * Valid key names are a single, lowercased letter, i.e. "n".
+ */
+
+exports.formatters = {};
+
+/**
+ * Previously assigned color.
+ */
+
+var prevColor = 0;
+
+/**
+ * Previous log timestamp.
+ */
+
+var prevTime;
+
+/**
+ * Select a color.
+ *
+ * @return {Number}
+ * @api private
+ */
+
+function selectColor() {
+  return exports.colors[prevColor++ % exports.colors.length];
+}
+
+/**
+ * Create a debugger with the given `namespace`.
+ *
+ * @param {String} namespace
+ * @return {Function}
+ * @api public
+ */
+
+function debug(namespace) {
+
+  // define the `disabled` version
+  function disabled() {
+  }
+  disabled.enabled = false;
+
+  // define the `enabled` version
+  function enabled() {
+
+    var self = enabled;
+
+    // set `diff` timestamp
+    var curr = +new Date();
+    var ms = curr - (prevTime || curr);
+    self.diff = ms;
+    self.prev = prevTime;
+    self.curr = curr;
+    prevTime = curr;
+
+    // add the `color` if not set
+    if (null == self.useColors) self.useColors = exports.useColors();
+    if (null == self.color && self.useColors) self.color = selectColor();
+
+    var args = Array.prototype.slice.call(arguments);
+
+    args[0] = exports.coerce(args[0]);
+
+    if ('string' !== typeof args[0]) {
+      // anything else let's inspect with %o
+      args = ['%o'].concat(args);
+    }
+
+    // apply any `formatters` transformations
+    var index = 0;
+    args[0] = args[0].replace(/%([a-z%])/g, function(match, format) {
+      // if we encounter an escaped % then don't increase the array index
+      if (match === '%%') return match;
+      index++;
+      var formatter = exports.formatters[format];
+      if ('function' === typeof formatter) {
+        var val = args[index];
+        match = formatter.call(self, val);
+
+        // now we need to remove `args[index]` since it's inlined in the `format`
+        args.splice(index, 1);
+        index--;
+      }
+      return match;
+    });
+
+    if ('function' === typeof exports.formatArgs) {
+      args = exports.formatArgs.apply(self, args);
+    }
+    var logFn = enabled.log || exports.log || console.log.bind(console);
+    logFn.apply(self, args);
+  }
+  enabled.enabled = true;
+
+  var fn = exports.enabled(namespace) ? enabled : disabled;
+
+  fn.namespace = namespace;
+
+  return fn;
+}
+
+/**
+ * Enables a debug mode by namespaces. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} namespaces
+ * @api public
+ */
+
+function enable(namespaces) {
+  exports.save(namespaces);
+
+  var split = (namespaces || '').split(/[\s,]+/);
+  var len = split.length;
+
+  for (var i = 0; i < len; i++) {
+    if (!split[i]) continue; // ignore empty strings
+    namespaces = split[i].replace(/\*/g, '.*?');
+    if (namespaces[0] === '-') {
+      exports.skips.push(new RegExp('^' + namespaces.substr(1) + '$'));
+    } else {
+      exports.names.push(new RegExp('^' + namespaces + '$'));
+    }
+  }
+}
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+function disable() {
+  exports.enable('');
+}
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+function enabled(name) {
+  var i, len;
+  for (i = 0, len = exports.skips.length; i < len; i++) {
+    if (exports.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (i = 0, len = exports.names.length; i < len; i++) {
+    if (exports.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Coerce `val`.
+ *
+ * @param {Mixed} val
+ * @return {Mixed}
+ * @api private
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+},{"ms":8}],8:[function(require,module,exports){
+/**
+ * Helpers.
+ */
+
+var s = 1000;
+var m = s * 60;
+var h = m * 60;
+var d = h * 24;
+var y = d * 365.25;
+
+/**
+ * Parse or format the given `val`.
+ *
+ * Options:
+ *
+ *  - `long` verbose formatting [false]
+ *
+ * @param {String|Number} val
+ * @param {Object} options
+ * @return {String|Number}
+ * @api public
+ */
+
+module.exports = function(val, options){
+  options = options || {};
+  if ('string' == typeof val) return parse(val);
+  return options.long
+    ? long(val)
+    : short(val);
+};
+
+/**
+ * Parse the given `str` and return milliseconds.
+ *
+ * @param {String} str
+ * @return {Number}
+ * @api private
+ */
+
+function parse(str) {
+  str = '' + str;
+  if (str.length > 10000) return;
+  var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(str);
+  if (!match) return;
+  var n = parseFloat(match[1]);
+  var type = (match[2] || 'ms').toLowerCase();
+  switch (type) {
+    case 'years':
+    case 'year':
+    case 'yrs':
+    case 'yr':
+    case 'y':
+      return n * y;
+    case 'days':
+    case 'day':
+    case 'd':
+      return n * d;
+    case 'hours':
+    case 'hour':
+    case 'hrs':
+    case 'hr':
+    case 'h':
+      return n * h;
+    case 'minutes':
+    case 'minute':
+    case 'mins':
+    case 'min':
+    case 'm':
+      return n * m;
+    case 'seconds':
+    case 'second':
+    case 'secs':
+    case 'sec':
+    case 's':
+      return n * s;
+    case 'milliseconds':
+    case 'millisecond':
+    case 'msecs':
+    case 'msec':
+    case 'ms':
+      return n;
+  }
+}
+
+/**
+ * Short format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function short(ms) {
+  if (ms >= d) return Math.round(ms / d) + 'd';
+  if (ms >= h) return Math.round(ms / h) + 'h';
+  if (ms >= m) return Math.round(ms / m) + 'm';
+  if (ms >= s) return Math.round(ms / s) + 's';
+  return ms + 'ms';
+}
+
+/**
+ * Long format for `ms`.
+ *
+ * @param {Number} ms
+ * @return {String}
+ * @api private
+ */
+
+function long(ms) {
+  return plural(ms, d, 'day')
+    || plural(ms, h, 'hour')
+    || plural(ms, m, 'minute')
+    || plural(ms, s, 'second')
+    || ms + ' ms';
+}
+
+/**
+ * Pluralization helper.
+ */
+
+function plural(ms, n, name) {
+  if (ms < n) return;
+  if (ms < n * 1.5) return Math.floor(ms / n) + ' ' + name;
+  return Math.ceil(ms / n) + ' ' + name + 's';
+}
+
+},{}],9:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -458,7 +964,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":8}],7:[function(require,module,exports){
+},{"./utils/extend":11}],10:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -485,7 +991,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],8:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -508,7 +1014,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":7}],9:[function(require,module,exports){
+},{"./each":10}],12:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("./utils");
 
@@ -533,8 +1039,20 @@ Client.prototype = {
     /**
      * @abstract
      */
-    ping: function() {
-        throw new TypeError("Method 'ping' must be implemented");
+    check: function() {
+        var self = this;
+
+        return this
+            .query("show databases")
+            .then(function(response) {
+                var index;
+
+                index = _.flatten(response.results[0].series[0].values).indexOf(self.options.database);
+
+                if (index == -1) {
+                    throw new Error("Database not found: \"" + self.options.database +  "\"");
+                }
+            });
     },
 
     /**
@@ -560,7 +1078,7 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"./utils":17,"inherits-js":23}],10:[function(require,module,exports){
+},{"./utils":20,"inherits-js":26}],13:[function(require,module,exports){
 var Client = require("../client").Client;
 var assert   = require("assert");
 var Measurement = require("../measurement").Measurement;
@@ -628,7 +1146,7 @@ DecoratorClient = Client.extend(
         },
 
         ping: function() {
-            return this.client.ping();
+            return this.client.check();
         },
 
         writeMany: function(measurements) {
@@ -643,7 +1161,7 @@ DecoratorClient = Client.extend(
 );
 
 exports.DecoratorClient = DecoratorClient;
-},{"../client":9,"../measurement":13,"../utils":17,"../value":18,"assert":"assert"}],11:[function(require,module,exports){
+},{"../client":12,"../measurement":16,"../utils":20,"../value":21,"assert":"assert"}],14:[function(require,module,exports){
 var Client = require("../client").Client;
 var Serializer = require("../serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
@@ -695,10 +1213,6 @@ HttpClient = Client.extend(
 
                 resolve(self.hosts[0]);
             });
-        },
-
-        ping: function() {
-            return this.query("show servers").then(function() {})
         },
 
         query: function(query) {
@@ -802,7 +1316,7 @@ HttpClient = Client.extend(
                                     }
 
                                     default: {
-                                        return reject(new Error("InfluxDB unknown status code"));
+                                        return reject(new Error("InfluxDB unknown status code: " + resp.statusCode));
                                     }
                                 }
                             });
@@ -822,8 +1336,9 @@ HttpClient = Client.extend(
 );
 
 exports.HttpClient = HttpClient;
-},{"../client":9,"../host":12,"../measurement":13,"../serializer":14,"../utils":17,"assert":"assert","hurl/lib/http":3}],12:[function(require,module,exports){
+},{"../client":12,"../host":15,"../measurement":16,"../serializer":17,"../utils":20,"assert":"assert","hurl/lib/http":3}],15:[function(require,module,exports){
 var assert = require("assert");
+var _ = require("./utils");
 
 /**
  * @class Host
@@ -831,6 +1346,10 @@ var assert = require("assert");
  * @final
  */
 function Host(protocol, host, port) {
+    assert(_.isString(protocol), "String is expected for protocol");
+    assert(_.isString(host), "String is expected for host");
+    assert(_.isNumber(port), "Number is expected for port");
+
     this.protocol = protocol;
     this.host = host;
     this.port = port;
@@ -845,7 +1364,7 @@ Host.prototype = {
 };
 
 exports.Host = Host;
-},{"assert":"assert"}],13:[function(require,module,exports){
+},{"./utils":20,"assert":"assert"}],16:[function(require,module,exports){
 var Value  = require("./value").Value;
 var assert = require("assert");
 var _      = require("./utils");
@@ -899,7 +1418,7 @@ Measurement.prototype = {
 
 
 exports.Measurement = Measurement;
-},{"./utils":17,"./value":18,"assert":"assert"}],14:[function(require,module,exports){
+},{"./utils":20,"./value":21,"assert":"assert"}],17:[function(require,module,exports){
 var inherits = require("inherits-js");
 
 /**
@@ -925,7 +1444,7 @@ Serializer.extend = function(p, s) {
 };
 
 exports.Serializer = Serializer;
-},{"inherits-js":23}],15:[function(require,module,exports){
+},{"inherits-js":26}],18:[function(require,module,exports){
 var Serializer      = require("../serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var STRING      = require("../type").STRING;
@@ -1093,7 +1612,7 @@ LineSerializer = Serializer.extend(
 );
 
 exports.LineSerializer = LineSerializer;
-},{"../measurement":13,"../serializer":14,"../type":16,"../utils":17,"assert":"assert"}],16:[function(require,module,exports){
+},{"../measurement":16,"../serializer":17,"../type":19,"../utils":20,"assert":"assert"}],19:[function(require,module,exports){
 var _ = require("./utils");
 
 var STRING  = 0;
@@ -1136,7 +1655,7 @@ exports.FLOAT64 = FLOAT64;
 exports.INT64 = INT64;
 exports.BOOLEAN = BOOLEAN;
 exports.TYPE = TYPE;
-},{"./utils":17}],17:[function(require,module,exports){
+},{"./utils":20}],20:[function(require,module,exports){
 exports.getTypeOf = (function() {
     var typeReg = /\[object ([A-Z][a-z]+)\]/;
 
@@ -1170,7 +1689,13 @@ exports.extend = function(target) {
         return exports.getTypeOf(obj) == type;
     };
 });
-},{}],18:[function(require,module,exports){
+
+exports.flatten = function(list) {
+    return list.reduce(function(result, item) {
+        return result.concat(exports.isArray(item) ? exports.flatten(item) : item);
+    }, []);
+};
+},{}],21:[function(require,module,exports){
 var TYPE   = require("./type").TYPE;
 var getInfluxTypeOf = require("./type").getInfluxTypeOf;
 var assert = require("assert");
@@ -1195,7 +1720,7 @@ function Value(data, type) {
 }
 
 exports.Value = Value;
-},{"./type":16,"assert":"assert"}],19:[function(require,module,exports){
+},{"./type":19,"assert":"assert"}],22:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1220,14 +1745,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],20:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],21:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1817,7 +2342,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":20,"_process":22,"inherits":19}],22:[function(require,module,exports){
+},{"./support/isBuffer":23,"_process":25,"inherits":22}],25:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1909,13 +2434,13 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"./utils/extend":25,"dup":6}],24:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],25:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"./each":24,"dup":8}],26:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
+arguments[4][9][0].apply(exports,arguments)
+},{"./utils/extend":28,"dup":9}],27:[function(require,module,exports){
+arguments[4][10][0].apply(exports,arguments)
+},{"dup":10}],28:[function(require,module,exports){
+arguments[4][11][0].apply(exports,arguments)
+},{"./each":27,"dup":11}],29:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -1997,7 +2522,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],27:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2424,7 +2949,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":21}],"events":[function(require,module,exports){
+},{"util/":24}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2759,6 +3284,8 @@ function createHost(def) {
 exports.createClient = function(config) {
     var hosts, server, username, password, database, client;
 
+    assert(_.isObject(config), "Object is expected for config");
+
     server = config.server;
 
     if (_.isObject(server)) {
@@ -2787,7 +3314,7 @@ exports.createClient = function(config) {
     });
 
     return client
-        .ping()
+        .check()
         .then(function() {
             var decorator;
 
@@ -2798,13 +3325,13 @@ exports.createClient = function(config) {
         });
 };
 
-},{"./lib/client":9,"./lib/client/decorator":10,"./lib/client/http":11,"./lib/host":12,"./lib/measurement":13,"./lib/serializer":14,"./lib/serializer/line":15,"./lib/type":16,"./lib/utils":17,"./lib/value":18,"assert":"assert","hurl/lib/xhr":5}],"querystring":[function(require,module,exports){
+},{"./lib/client":12,"./lib/client/decorator":13,"./lib/client/http":14,"./lib/host":15,"./lib/measurement":16,"./lib/serializer":17,"./lib/serializer/line":18,"./lib/type":19,"./lib/utils":20,"./lib/value":21,"assert":"assert","hurl/lib/xhr":5}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":26,"./encode":27}]},{},[]);
+},{"./decode":29,"./encode":30}]},{},[]);
 
 return require("influent");
 }));
