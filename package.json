@@ -5,12 +5,12 @@
   "author": {
     "name": "Sergey Kamardin",
     "email": "gobwas@gmail.com",
-    "url": "https://github.com"
+    "url": "https://github.com/gobwas"
   },
-  "repository": "gobwas/influxciter",
+  "repository": "https://github.com/gobwas/influent",
   "license": "MIT",
   "keywords": [
-    "influxciter",
+    "influent",
     "influx",
     "db",
     "line",
