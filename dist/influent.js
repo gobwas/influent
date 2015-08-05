@@ -1017,11 +1017,21 @@ module.exports = function(to) {
 },{"./each":10}],12:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("./utils");
+var assert = require("assert");
+var precision = require("./precision");
 
 /**
  * @abstract
  */
 function Client(options) {
+    assert(_.isObject(options),          "options is expected to be an Object");
+    assert(_.isString(options.username), "options.username is expected to be a string");
+    assert(_.isString(options.password), "options.password is expected to be a string");
+    assert(_.isString(options.database), "options.database is expected to be a string");
+
+    precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
+    precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
+
     this.options = _.extend({}, this.constructor.DEFAULTS, options);
 }
 
@@ -1070,7 +1080,10 @@ Client.prototype = {
     }
 };
 
-Client.DEFAULTS = {};
+Client.DEFAULTS = {
+    precision: null,
+    epoch:     null
+};
 
 Client.extend = function(p, s) {
     return inherits(this, p, s);
@@ -1078,7 +1091,7 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"./utils":20,"inherits-js":26}],13:[function(require,module,exports){
+},{"./precision":17,"./utils":21,"assert":"assert","inherits-js":27}],13:[function(require,module,exports){
 var Client = require("../client").Client;
 var assert   = require("assert");
 var Measurement = require("../measurement").Measurement;
@@ -1161,7 +1174,7 @@ DecoratorClient = Client.extend(
 );
 
 exports.DecoratorClient = DecoratorClient;
-},{"../client":12,"../measurement":16,"../utils":20,"../value":21,"assert":"assert"}],14:[function(require,module,exports){
+},{"../client":12,"../measurement":16,"../utils":21,"../value":22,"assert":"assert"}],14:[function(require,module,exports){
 var Client = require("../client").Client;
 var Serializer = require("../serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
@@ -1169,6 +1182,7 @@ var Host = require("../host").Host;
 var assert = require("assert");
 var Http = require("hurl/lib/http").Http;
 var _ = require("../utils");
+var precision = require("../precision");
 var HttpClient;
 
 /**
@@ -1215,15 +1229,26 @@ HttpClient = Client.extend(
             });
         },
 
-        query: function(query) {
+        query: function(query, options) {
             var self = this;
-            var options = this.options;
 
             assert(_.isString(query), "String is expected");
+
+            options = options || {};
+            precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
+            options = _.extend({}, this.options, _.pick(options, "epoch"));
 
             return this
                 .getHost()
                 .then(function(host) {
+                    var queryObj;
+
+                    queryObj = {};
+
+                    if (_.isString(options.epoch)) {
+                        queryObj["epoch"] = options.epoch;
+                    }
+
                     return self.http
                         .request(host.toString() + "/query", {
                             method: "GET",
@@ -1231,10 +1256,10 @@ HttpClient = Client.extend(
                                 username: options.username,
                                 password: options.password
                             },
-                            query: {
+                            query: _.extend(queryObj, {
                                 db: options.database,
                                 q:  query
-                            }
+                            })
                         })
                         .then(function(resp) {
                             if (resp.statusCode == 200) {
@@ -1246,16 +1271,20 @@ HttpClient = Client.extend(
                 });
         },
 
-        writeOne: function(measurement) {
+        writeOne: function(measurement, options) {
             assert(measurement instanceof Measurement, "Measurement is expected");
-            return this.writeMany([ measurement ]);
+            return this.writeMany([ measurement ], options);
         },
 
-        writeMany: function(measurements) {
+        writeMany: function(measurements, options) {
             var self = this,
                 chunk, parts, i, pos, size;
 
             assert(_.isArray(measurements), "Array is expected");
+
+            options = options || {};
+            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
+            options = _.extend({}, this.options, _.pick(options, "precision"));
 
             i = 0;
             size = this.options.max_batch;
@@ -1280,18 +1309,23 @@ HttpClient = Client.extend(
                         return self.serializer.serialize(measurement);
                     }))
                     .then(function(list) {
-                        return self._write(list.join("\n"));
+                        return self._write(list.join("\n"), options);
                     });
             }));
         },
 
-        _write: function(data) {
+        _write: function(data, options) {
             var self = this;
-            var options = this.options;
 
             return this
                 .getHost()
                 .then(function(host) {
+                    var queryObj = {};
+
+                    if (_.isString(options.precision)) {
+                        queryObj["precision"] = options.precision;
+                    }
+
                     return self.http
                         .request(host.toString() + "/write", {
                             method: "POST",
@@ -1299,9 +1333,9 @@ HttpClient = Client.extend(
                                 username: options.username,
                                 password: options.password
                             },
-                            query: {
+                            query: _.extend(queryObj, {
                                 db: options.database
-                            },
+                            }),
                             data: data
                         })
                         .then(function(resp) {
@@ -1326,17 +1360,14 @@ HttpClient = Client.extend(
     },
 
     {
-        DEFAULTS: {
-            username : '',
-            password : '',
-            database : '',
+        DEFAULTS: _.extend({}, Client.DEFAULTS, {
             max_batch: 5000
-        }
+        })
     }
 );
 
 exports.HttpClient = HttpClient;
-},{"../client":12,"../host":15,"../measurement":16,"../serializer":17,"../utils":20,"assert":"assert","hurl/lib/http":3}],15:[function(require,module,exports){
+},{"../client":12,"../host":15,"../measurement":16,"../precision":17,"../serializer":18,"../utils":21,"assert":"assert","hurl/lib/http":3}],15:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
@@ -1364,7 +1395,7 @@ Host.prototype = {
 };
 
 exports.Host = Host;
-},{"./utils":20,"assert":"assert"}],16:[function(require,module,exports){
+},{"./utils":21,"assert":"assert"}],16:[function(require,module,exports){
 var Value  = require("./value").Value;
 var assert = require("assert");
 var _      = require("./utils");
@@ -1418,7 +1449,48 @@ Measurement.prototype = {
 
 
 exports.Measurement = Measurement;
-},{"./utils":20,"./value":21,"assert":"assert"}],17:[function(require,module,exports){
+},{"./utils":21,"./value":22,"assert":"assert"}],17:[function(require,module,exports){
+var assert = require("assert");
+var _ = require("./utils");
+
+var NANOSECONDS = 0;
+var MICROSECONDS = 1;
+var MILLISECONDS = 2;
+var SECONDS = 3;
+var MINUTES = 4;
+var HOURS = 5;
+
+var PRECISION = [
+    NANOSECONDS,
+    MICROSECONDS,
+    MILLISECONDS,
+    SECONDS,
+    MINUTES,
+    HOURS
+];
+
+var MAP = {};
+MAP[NANOSECONDS]  = "n";
+MAP[MICROSECONDS] = "u";
+MAP[MILLISECONDS] = "ms";
+MAP[SECONDS]      = "s";
+MAP[MINUTES]      = "m";
+MAP[HOURS]        = "h";
+
+exports.PRECISION = PRECISION;
+exports.NANOSECONDS = NANOSECONDS;
+exports.MICROSECONDS = MICROSECONDS;
+exports.MILLISECONDS = MILLISECONDS;
+exports.SECONDS = SECONDS;
+exports.MINUTES = MINUTES;
+exports.HOURS = HOURS;
+exports.MAP = MAP;
+
+exports.assert = function(precision, nullable, msg) {
+    var values = _.values(MAP);
+    assert((nullable ? precision == null : false) || values.indexOf(precision) != -1, msg.replace("%values%", values.join(",")));
+};
+},{"./utils":21,"assert":"assert"}],18:[function(require,module,exports){
 var inherits = require("inherits-js");
 
 /**
@@ -1444,7 +1516,7 @@ Serializer.extend = function(p, s) {
 };
 
 exports.Serializer = Serializer;
-},{"inherits-js":26}],18:[function(require,module,exports){
+},{"inherits-js":27}],19:[function(require,module,exports){
 var Serializer      = require("../serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var STRING      = require("../type").STRING;
@@ -1612,7 +1684,7 @@ LineSerializer = Serializer.extend(
 );
 
 exports.LineSerializer = LineSerializer;
-},{"../measurement":16,"../serializer":17,"../type":19,"../utils":20,"assert":"assert"}],19:[function(require,module,exports){
+},{"../measurement":16,"../serializer":18,"../type":20,"../utils":21,"assert":"assert"}],20:[function(require,module,exports){
 var _ = require("./utils");
 
 var STRING  = 0;
@@ -1655,7 +1727,7 @@ exports.FLOAT64 = FLOAT64;
 exports.INT64 = INT64;
 exports.BOOLEAN = BOOLEAN;
 exports.TYPE = TYPE;
-},{"./utils":20}],20:[function(require,module,exports){
+},{"./utils":21}],21:[function(require,module,exports){
 exports.getTypeOf = (function() {
     var typeReg = /\[object ([A-Z][a-z]+)\]/;
 
@@ -1684,6 +1756,36 @@ exports.extend = function(target) {
     return target;
 };
 
+exports.values = function(source) {
+    var values = [];
+
+    exports.forEachIn(source, function(value) {
+        values.push(value);
+    });
+
+    return values;
+};
+
+exports.pick = function(source, keys) {
+    var needles, result;
+
+    if (exports.isArray(keys)) {
+        needles = keys;
+    } else {
+        needles = Array.prototype.slice.call(arguments, 1);
+    }
+
+    result = {};
+
+    exports.forEachIn(source, function(value, key) {
+        if (needles.indexOf(key) != -1) {
+            result[key] = value;
+        }
+    });
+
+    return result;
+};
+
 ["Object", "String", "Number", "Boolean", "Array"].forEach(function(type) {
     exports["is" + type] = function(obj) {
         return exports.getTypeOf(obj) == type;
@@ -1695,7 +1797,7 @@ exports.flatten = function(list) {
         return result.concat(exports.isArray(item) ? exports.flatten(item) : item);
     }, []);
 };
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var TYPE   = require("./type").TYPE;
 var getInfluxTypeOf = require("./type").getInfluxTypeOf;
 var assert = require("assert");
@@ -1720,7 +1822,7 @@ function Value(data, type) {
 }
 
 exports.Value = Value;
-},{"./type":19,"assert":"assert"}],22:[function(require,module,exports){
+},{"./type":20,"assert":"assert"}],23:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1745,14 +1847,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2342,7 +2444,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":23,"_process":25,"inherits":22}],25:[function(require,module,exports){
+},{"./support/isBuffer":24,"_process":26,"inherits":23}],26:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2434,13 +2536,13 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"./utils/extend":28,"dup":9}],27:[function(require,module,exports){
+},{"./utils/extend":29,"dup":9}],28:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],28:[function(require,module,exports){
+},{"dup":10}],29:[function(require,module,exports){
 arguments[4][11][0].apply(exports,arguments)
-},{"./each":27,"dup":11}],29:[function(require,module,exports){
+},{"./each":28,"dup":11}],30:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2522,7 +2624,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2949,7 +3051,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":24}],"events":[function(require,module,exports){
+},{"util/":25}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3325,13 +3427,13 @@ exports.createClient = function(config) {
         });
 };
 
-},{"./lib/client":12,"./lib/client/decorator":13,"./lib/client/http":14,"./lib/host":15,"./lib/measurement":16,"./lib/serializer":17,"./lib/serializer/line":18,"./lib/type":19,"./lib/utils":20,"./lib/value":21,"assert":"assert","hurl/lib/xhr":5}],"querystring":[function(require,module,exports){
+},{"./lib/client":12,"./lib/client/decorator":13,"./lib/client/http":14,"./lib/host":15,"./lib/measurement":16,"./lib/serializer":18,"./lib/serializer/line":19,"./lib/type":20,"./lib/utils":21,"./lib/value":22,"assert":"assert","hurl/lib/xhr":5}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":29,"./encode":30}]},{},[]);
+},{"./decode":30,"./encode":31}]},{},[]);
 
 return require("influent");
 }));
