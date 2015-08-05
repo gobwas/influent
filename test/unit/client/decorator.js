@@ -13,6 +13,15 @@ chai.use(chaiAsPromised);
 chai.should();
 
 describe("DecoratorClient", function() {
+    var options, username, password, database;
+
+    beforeEach(function() {
+        options = {
+            username: (username = chance.word()),
+            password: (password = chance.word()),
+            database: (database = chance.word())
+        };
+    });
 
     describe("constructor", function() {
 
@@ -20,7 +29,7 @@ describe("DecoratorClient", function() {
             var instance;
 
             // when
-            instance = new DecoratorClient();
+            instance = new DecoratorClient(options);
 
             // then
             expect(instance).to.be.instanceof(DecoratorClient);
@@ -32,7 +41,7 @@ describe("DecoratorClient", function() {
         var instance;
 
         beforeEach(function() {
-            instance = new DecoratorClient();
+            instance = new DecoratorClient(options);
         });
 
         it("should throw error, when client is not a Client", function() {
@@ -64,7 +73,7 @@ describe("DecoratorClient", function() {
         var instance, client;
 
         beforeEach(function() {
-            instance = new DecoratorClient();
+            instance = new DecoratorClient(options);
             client = Object.create(Client.prototype);
             instance.injectClient(client);
         });
@@ -87,9 +96,20 @@ describe("DecoratorClient", function() {
 
             //before
             writeStub = sinon.stub(client, "writeOne", function() { return Promise.resolve(); });
+            stamp = Date.now();
 
             // when
-            result = instance.writeOne({ key: "key", tags: { tag: "tag" }, fields: { field: "field", val: new Value("val") }, timestamp: (stamp = Date.now()) });
+            result = instance.writeOne({
+                key: "key",
+                tags: {
+                    tag: "tag"
+                },
+                fields: {
+                    field: "field",
+                    val: new Value("val")
+                },
+                timestamp: new Date(stamp)
+            });
 
             // then
             return result.then(function() {
@@ -130,7 +150,7 @@ describe("DecoratorClient", function() {
         var instance, client;
 
         beforeEach(function() {
-            instance = new DecoratorClient();
+            instance = new DecoratorClient(options);
             client = Object.create(Client.prototype);
             instance.injectClient(client);
         });

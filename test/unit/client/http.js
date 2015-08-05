@@ -10,6 +10,15 @@ var _      = require("lodash");
 var chance = require("chance").Chance();
 
 describe("HttpClient", function() {
+    var options, username, password, database;
+
+    beforeEach(function() {
+        options = {
+            username: (username = chance.word()),
+            password: (password = chance.word()),
+            database: (database = chance.word())
+        };
+    });
 
     describe("injectors", function() {
 
@@ -17,7 +26,7 @@ describe("HttpClient", function() {
             var instance;
 
             beforeEach(function() {
-                instance = new HttpClient();
+                instance = new HttpClient(options);
             });
 
             it("should throw error, when serializer is not a Serializer", function() {
@@ -48,7 +57,7 @@ describe("HttpClient", function() {
             var instance;
 
             beforeEach(function() {
-                instance = new HttpClient();
+                instance = new HttpClient(options);
             });
 
             it("should throw error, when http is not a Http", function() {
@@ -79,18 +88,12 @@ describe("HttpClient", function() {
 
 
     describe("methods", function() {
-        var options, instance, host, serializer, http,
-            db, username, password;
+        var instance, host, serializer, http,
+            precision, epoch;
 
         beforeEach(function() {
             serializer = Object.create(Serializer.prototype);
             http = Object.create(Http.prototype);
-
-            options = {
-                database: (db = "db"),
-                username: (username = "username"),
-                password: (password = "password")
-            };
 
             host = new Host("http", "localhost", 8086);
 
@@ -123,7 +126,7 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.writeOne(new Measurement("key"));
+                promise = instance.writeOne(new Measurement("key"), { precision: (precision = "s") });
 
                 // then
                 return promise
@@ -145,7 +148,8 @@ describe("HttpClient", function() {
                                 "password": password
                             },
                             "query": {
-                                "db": db
+                                "db": database,
+                                "precision": precision
                             }
                         });
 
@@ -177,7 +181,7 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.writeMany([ new Measurement("a"), new Measurement("b") ]);
+                promise = instance.writeMany([ new Measurement("a"), new Measurement("b") ], { precision: (precision = "s") });
 
                 // then
                 return promise
@@ -199,7 +203,8 @@ describe("HttpClient", function() {
                                 "password": password
                             },
                             "query": {
-                                "db": db
+                                "db": database,
+                                "precision": precision
                             }
                         });
 
@@ -229,7 +234,7 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.query(query);
+                promise = instance.query(query, { epoch: (epoch = "s") });
                 
                 // then
                 return promise.then(function() {
@@ -251,8 +256,9 @@ describe("HttpClient", function() {
                     });
 
                     expect(config.query).to.deep.equal({
-                        db: db,
-                        q:  query
+                        db: database,
+                        q:  query,
+                        epoch: epoch
                     });
                 })
             });

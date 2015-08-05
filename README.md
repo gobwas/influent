@@ -116,6 +116,11 @@ Where `config` should have structure like:
     username: string
     password: string
     database: string
+    
+    // optional:
+    
+    precision: enum[n, u, ms, s, m, h]
+    epoch: enum[n, u, ms, s, m, h]
 }
 
 ```
@@ -134,9 +139,31 @@ Abstract class of InfluxDB client. Have several abstract methods:
 
 Checks availability for use given database.
 
-##### client.query(query: string) -> Promise[Object]
-##### client.writeOne(measurement: influent.Measurement) -> Promise[]
-##### client.writeMany(measurements: Array[influent.Measurement]) -> Promise[]
+##### client.query(query: string[, options: Object]) -> Promise[Object]
+
+Options could be an object with:
+
+```
+{
+    epoch: enum[n, u, ms, s, m, h]
+}
+
+```
+
+##### client.writeOne(measurement: influent.Measurement[, options: Object]) -> Promise[]
+
+Options could be an object with:
+
+```
+{
+    precision: enum[n, u, ms, s, m, h]
+}
+
+```
+
+##### client.writeMany(measurements: Array[influent.Measurement][, options: Object]) -> Promise[]
+
+Options the same as in `writeOne`.
 
 ______________________
 
@@ -154,7 +181,7 @@ ______________________
 
 Implementation of `influent.Client` for client usability usage. Overloads abstract methods:
 
-##### decoratorClient.writeOne(measurement: Object | influent.Measurement) -> Promise[]
+##### decoratorClient.writeOne(measurement: Object | influent.Measurement[, options: Object]) -> Promise[]
 
 When measurement is `Object`, it should have structure like:
 
@@ -171,7 +198,7 @@ When measurement is `Object`, it should have structure like:
 }
 ```
 
-##### decoratorClient.writeMany(measurements: Array[ Object | influent.Measurement]) -> Promise[]
+##### decoratorClient.writeMany(measurements: Array[ Object | influent.Measurement][, options: Object]) -> Promise[]
 
 Where `Object` is the same as for `writeOne` above.
 
