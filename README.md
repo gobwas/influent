@@ -38,7 +38,12 @@ influent
                 host:     "localhost",
                 port:     8086
             }
-        ]
+        ],
+        
+        // optional
+        
+        precision: "ms",
+        epoch: "ms"
     })
     .then(function(client) {
         client
