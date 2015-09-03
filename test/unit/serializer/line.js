@@ -78,7 +78,7 @@ describe("LineSerializer", function() {
             measurement.addField("field", new Value(1, type.INT64));
             result = instance.serialize(measurement);
 
-            return result.should.become("key field=1");
+            return result.should.become("key field=1i");
         });
 
         it("should parse as float64", function() {
@@ -92,6 +92,17 @@ describe("LineSerializer", function() {
             return result.should.become("key field=1.1");
         });
 
+        it("should parse numbers as float64 by default", function() {
+            var result, measurement;
+
+            // when
+            measurement = new Measurement("key");
+            measurement.addField("field", new Value(1));
+            result = instance.serialize(measurement);
+
+            return result.should.become("key field=1");
+        });
+
         it("should parse as float64, even if it is without decimal", function() {
             var result, measurement;
 
@@ -100,7 +111,7 @@ describe("LineSerializer", function() {
             measurement.addField("field", new Value(1, type.FLOAT64));
             result = instance.serialize(measurement);
 
-            return result.should.become("key field=1.0");
+            return result.should.become("key field=1");
         });
 
         it("should sort keys of tags", function() {
@@ -127,6 +138,20 @@ describe("LineSerializer", function() {
 
             // then
             return result.should.become("key a=0,b=1");
+        });
+
+        it("should allow strings for timestamps", function() {
+            var result, measurement, stamp;
+
+            // when
+            stamp = "1441236081554000001";
+            measurement = new Measurement("key");
+            measurement.addField("a", new Value(0));
+            measurement.setTimestamp(stamp);
+            result = instance.serialize(measurement);
+
+            // then
+            return result.should.become("key a=0 1441236081554000001");
         });
 
     });
