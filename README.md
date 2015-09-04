@@ -75,12 +75,12 @@ According to InfluxDB@0.9 [docs](https://influxdb.com/docs/v0.9/write_protocols/
 
 > Field values may be stored as float64, int64, boolean, or string. All subsequent field values must match the type of the first point written to given measurement.
 
-+ `float64` values must contain a decimal. 1.0 is a float, 1 is an integer;
-+ `int64` values may not contain a decimal. 1 is an integer, 1.0 is a float;
-+ `boolean` values are t, T, true, True, or TRUE for TRUE, and f, F, false, False, or FALSE for FALSE;
++ `float64` values are the default numerical type. `1` is a float, `1i` is an integer;
++ `int64` value must have a trailing `i`. The field `bikes_present=15i` stores an integer and the field `bikes_present=15` stores a float;
++ `boolean` values are `t`, `T`, `true`, `True`, or `TRUE` for TRUE, and `f`, `F`, `false`, `False`, or `FALSE` for FALSE;
 + `string` values for field values must be double-quoted. Double-quotes contained within the string must be escaped. All other characters are supported without escaping.
 
-There is a little bit problem with Javascript numbers, cause it could be both integer or float. So for solve it here `influent.Value` abstraction for you:
+There is a little bit problem with Javascript numbers, cause it could be both integer or float. So to solve it there is the `influent.Value` abstraction for you:
 
 ```js
 var influent = require("influent");
@@ -92,8 +92,8 @@ client
             tag: "sweet"
         },
         fields: {
-            // this will be saved as 10.0 into InfluxDB
-            value: new Value(10, influent.type.FLOAT64) 
+            // this will be written as 10i, and saved as int64 10 into InfluxDB
+            value: new Value(10, influent.type.INT64)
         },
         timestamp: Date.now()
     });
@@ -102,11 +102,14 @@ client
 
 ## API
 
-### influent.createClient(config: Object) -> Promise[influent.DecoratorClient[influent.HttpClient]]
+### `influent.createClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.HttpClient]]`
 
-Where `config` should have structure like:
+Default factory for creating client. Creates `influent.DecoratorClient` instance, with `influent.HttpClient` inside.
+This method calls `.check()` method of client, to make sure that connection is OK.
 
-```
+The `config` should have structure like:
+
+```js
 {
     server: {
         protocol: string
@@ -130,67 +133,64 @@ Where `config` should have structure like:
 
 ```
 
-Default factory for creating client. Creates `influent.DecoratorClient` instance, with `influent.HttpClient` inside.
-This method calls `.check()` method of client, to make sure that connection is OK.
-
 ______________________
 
-### Class: influent.Client
+### Class: `influent.Client`
 
-Abstract class of InfluxDB client. Have several abstract methods:
+Abstract class of InfluxDB client. Has several abstract methods:
 
-##### new influent.Client([options: Object])
-##### client.check() -> Promise[Object]
+##### `new influent.Client([options: Object])`
+##### `client.check()` -> `Promise[Object]`
 
 Checks availability for use given database.
 
-##### client.query(query: string[, options: Object]) -> Promise[Object]
+##### `client.query(query: string[, options: Object])` -> `Promise[Object]`
 
 Options could be an object with:
 
-```
+```js
 {
     epoch: enum[n, u, ms, s, m, h]
 }
 
 ```
 
-##### client.writeOne(measurement: influent.Measurement[, options: Object]) -> Promise[]
+##### `client.writeOne(measurement: influent.Measurement[, options: Object])` -> `Promise[]`
 
 Options could be an object with:
 
-```
+```js
 {
     precision: enum[n, u, ms, s, m, h]
 }
 
 ```
 
-##### client.writeMany(measurements: Array[influent.Measurement][, options: Object]) -> Promise[]
+##### `client.writeMany(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
 
 Options the same as in `writeOne`.
 
 ______________________
 
-### Class: influent.HttpClient
+### Class: `influent.HttpClient`
 
 Implementation of `influent.Client` for http usage. In addition to abstract methods has methods below.
 
-##### httpClient.injectHttp(http: hurl.Http)
+##### `httpClient.injectHttp(http: hurl.Http)`
 
 Injector of http service, that is implementation of abstract `hurl.Http` class. `hurl` is just npm dependency.
 
 ______________________
 
-### Class: influent.DecoratorClient[T: influent.Client]
+### Class: `influent.DecoratorClient[T: influent.Client]`
 
 Implementation of `influent.Client` for client usability usage. Overloads abstract methods:
 
-##### decoratorClient.writeOne(measurement: Object | influent.Measurement[, options: Object]) -> Promise[]
+##### `decoratorClient.writeOne(measurement: Object | influent.Measurement[, options: Object])` -> `Promise[]`
 
 When measurement is `Object`, it should have structure like:
 
-```
+```js
 {
     key: string
     fields: {
@@ -203,72 +203,72 @@ When measurement is `Object`, it should have structure like:
 }
 ```
 
-##### decoratorClient.writeMany(measurements: Array[ Object | influent.Measurement][, options: Object]) -> Promise[]
+##### `decoratorClient.writeMany(measurements: Array[ Object | influent.Measurement][, options: Object])` -> `Promise[]`
 
 Where `Object` is the same as for `writeOne` above.
 
-##### decoratorClient.injectClient(client: influent.Client)
+##### `decoratorClient.injectClient(client: influent.Client)`
 
 ______________________
 
-### Class: influent.Serializer
+### Class: `influent.Serializer`
 
-##### new influent.Serializer()
-##### serializer.serialize(measurement: influent.Measurement) -> Promise[String]
+##### `new influent.Serializer()`
+##### `serializer.serialize(measurement: influent.Measurement)` -> `Promise[String]`
 
 ______________________
 
-### Class: influent.LineSerializer
+### Class: `influent.LineSerializer`
 
 Line protocol implementation of `influent.Serializer`.
 
 ______________________
 
-### Class: influent.Value
+### Class: `influent.Value`
 
-##### new influent.Value(data: string | number | boolean[, type: one of influx.type.TYPE)
-
-______________________
-
-### Class: influent.Measurement
-
-##### new influent.Measurement(key: string)
-##### measurement.addTag(key: string, value: string)
-##### measurement.addField(key: string, value: influent.Value)
-##### measurement.setTimestamp(timestamp: number)
+##### `new influent.Value(data: string | number | boolean[, type: one of influx.type.TYPE)`
 
 ______________________
 
-### Class: influent.Host
+### Class: `influent.Measurement`
 
-##### new influent.Host(protocol: string, host: string, port: number)
-##### host.toString() -> String
+##### `new influent.Measurement(key: string)`
+##### `measurement.addTag(key: string, value: string)`
+##### `measurement.addField(key: string, value: influent.Value)`
+##### `measurement.setTimestamp(timestamp: string | number | Date)`
 
 ______________________
 
-### influent.type
+### Class: `influent.Host`
+
+##### `new influent.Host(protocol: string, host: string, port: number)`
+##### `host.toString()` -> `String`
+
+______________________
+
+### `influent.type`
 
 The type subpackage of influent.
 
-##### type.TYPE 
+##### `type.TYPE`
 
 Enum of types.
 
-##### type.FLOAT64
-##### type.INT64
-##### type.BOOLEAN
-##### type.STRING
-##### type.getInfluxTypeOf(obj: *) -> one of type.TYPE
+##### `type.FLOAT64`
+##### `type.INT64`
+##### `type.BOOLEAN`
+##### `type.STRING`
+##### `type.getInfluxTypeOf(obj: *)` -> one of `type.TYPE`
 
 ## Notes
 
 <sup>[1](#browser)</sup>: Browser version is about 32KB minified, and 12KB gzipped.
 **There are no polyfills in bundle for old browsers!**
-Be sure, that you have at least this global objects and object methods:
-+ Promise;
-+ Object.keys;
-+ Array.forEach;
-+ XMLHttpRequest.
+Be sure, that you have at least these global objects and object methods:
++ `Promise`;
++ `Object.keys`;
++ `Array.forEach`;
++ `XMLHttpRequest`.
 
 ## License
 

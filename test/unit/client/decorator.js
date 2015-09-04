@@ -120,10 +120,42 @@ describe("DecoratorClient", function() {
                 measurement = writeStub.firstCall.args[0];
 
                 expect(measurement).instanceof(Measurement);
-                expect(measurement.timestamp).equal(stamp);
+                expect(measurement.timestamp).equal(stamp.toString());
                 expect(measurement.key).equal("key");
                 expect(measurement.fields).deep.equal({ field: new Value("field"), val: new Value("val") });
                 expect(measurement.tags).deep.equal({ tag: "tag" });
+            });
+        });
+
+        it("should cast numerical timestamps to strings", function() {
+            var result, writeStub, stamp;
+
+            //before
+            writeStub = sinon.stub(client, "writeOne", function() { return Promise.resolve(); });
+            stamp = Date.now();
+
+            // when
+            result = instance.writeOne({
+                key: "key",
+                tags: {
+                    tag: "tag"
+                },
+                fields: {
+                    field: "field",
+                    val: new Value("val")
+                },
+                timestamp: Date.now()
+            });
+
+            // then
+            return result.then(function() {
+                var measurement;
+
+                expect(writeStub.callCount).equal(1);
+
+                measurement = writeStub.firstCall.args[0];
+
+                expect(measurement.timestamp).equal(stamp.toString());
             });
         });
 

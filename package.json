@@ -1,6 +1,6 @@
 {
   "name": "influent",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "InfluxDB driver",
   "author": {
     "name": "Sergey Kamardin",
@@ -11,6 +11,7 @@
   "license": "MIT",
   "keywords": [
     "influent",
+    "influxdb",
     "influx",
     "db",
     "line",
@@ -45,7 +46,8 @@
     "vinyl-source-stream": "^1.1.0"
   },
   "scripts": {
-    "test": "mocha --recursive ./test/unit"
+    "test": "mocha --recursive ./test/unit",
+    "build": "gulp"
   },
   "main": "./index.js"
 }
