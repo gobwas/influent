@@ -27,7 +27,7 @@ function createHost(def) {
 }
 
 exports.createClient = function(config) {
-    var hosts, server, username, password, database, client;
+    var hosts, server, client;
 
     assert(_.isObject(config), "Object is expected for config");
 
@@ -41,15 +41,7 @@ exports.createClient = function(config) {
         throw new Error("Object or Array is expected for config.server");
     }
 
-    assert(_.isString(username = config.username), "String is expected for config.username");
-    assert(_.isString(password = config.password), "String is expected for config.password");
-    assert(_.isString(database = config.database), "String is expected for config.database");
-
-    client = new HttpClient({
-        username: username,
-        password: password,
-        database: database
-    });
+    client = new HttpClient(config);
 
     client.injectSerializer(new LineSerializer());
     client.injectHttp(new Http());

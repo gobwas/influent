@@ -10,13 +10,14 @@ var _      = require("lodash");
 var chance = require("chance").Chance();
 
 describe("HttpClient", function() {
-    var options, username, password, database;
+    var options, username, password, database, max_batch;
 
     beforeEach(function() {
         options = {
             username: (username = chance.word()),
             password: (password = chance.word()),
-            database: (database = chance.word())
+            database: (database = chance.word()),
+            max_batch: (max_batch = chance.integer({ min: 2, max: 5 }))
         };
     });
 
@@ -210,6 +211,48 @@ describe("HttpClient", function() {
 
                         expect(config.data).equal("line\nline");
                     });
+            });
+
+            it("should batch requests", function() {
+                var serializeStub, getHostStub, requestStub,
+                  line, promise, points;
+
+                // before
+                serializeStub = sinon.stub(serializer, "serialize", function() {
+                    return Promise.resolve("line");
+                });
+
+                getHostStub = sinon.stub(instance, "getHost", function() {
+                    return Promise.resolve(host);
+                });
+
+                requestStub = sinon.stub(http, "request", function() {
+                    return Promise.resolve({
+                        statusCode: 204
+                    });
+                });
+
+                // when
+                points = [
+                    new Measurement("a"),
+                    new Measurement("b"),
+                    new Measurement("c"),
+                    new Measurement("d"),
+                    new Measurement("e"),
+                    new Measurement("f"),
+                    new Measurement("g"),
+                    new Measurement("h"),
+                    new Measurement("i"),
+                    new Measurement("j")
+                ];
+
+                promise = instance.writeMany(points, { precision: (precision = "s") });
+
+                // then
+                return promise
+                  .then(function() {
+                      expect(requestStub.callCount).equal(Math.ceil(points.length / max_batch));
+                  });
             });
 
         });
