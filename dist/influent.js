@@ -1018,20 +1018,11 @@ module.exports = function(to) {
 var inherits = require("inherits-js");
 var _ = require("./utils");
 var assert = require("assert");
-var precision = require("./precision");
 
 /**
  * @abstract
  */
 function Client(options) {
-    assert(_.isObject(options),          "options is expected to be an Object");
-    assert(_.isString(options.username), "options.username is expected to be a string");
-    assert(_.isString(options.password), "options.password is expected to be a string");
-    assert(_.isString(options.database), "options.database is expected to be a string");
-
-    precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
-    precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
-
     this.options = _.extend({}, this.constructor.DEFAULTS, options);
 }
 
@@ -1040,14 +1031,7 @@ Client.prototype = {
     constructor: Client,
 
     /**
-     * @abstract
-     */
-    query: function(query) {
-        throw new TypeError("Method 'query' must be implemented");
-    },
-
-    /**
-     * @abstract
+     * Checks if client could work with given options.
      */
     check: function() {
         var self = this;
@@ -1063,6 +1047,13 @@ Client.prototype = {
                     throw new Error("Database not found: \"" + self.options.database +  "\"");
                 }
             });
+    },
+
+    /**
+     * @abstract
+     */
+    query: function(query) {
+        throw new TypeError("Method 'query' must be implemented");
     },
 
     /**
@@ -1091,7 +1082,7 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"./precision":17,"./utils":21,"assert":"assert","inherits-js":27}],13:[function(require,module,exports){
+},{"./utils":21,"assert":"assert","inherits-js":27}],13:[function(require,module,exports){
 var Client = require("../client").Client;
 var assert   = require("assert");
 var Measurement = require("../measurement").Measurement;
@@ -1197,8 +1188,17 @@ HttpClient = Client.extend(
         /**
          *
          */
-        constructor: function() {
+        constructor: function(options) {
             Client.prototype.constructor.apply(this, arguments);
+
+            assert(_.isObject(options),          "options is expected to be an Object");
+            assert(_.isString(options.username), "options.username is expected to be a string");
+            assert(_.isString(options.password), "options.password is expected to be a string");
+            assert(_.isString(options.database), "options.database is expected to be a string");
+
+            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
+            precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
+
             this.hosts = [];
         },
 
