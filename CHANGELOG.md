@@ -1,6 +1,11 @@
 Change log
 ==========
 
+### 0.3.0 (04-09-2015)
+______________________
+
++ Support for [InfluxDB@0.9.3 changes](https://github.com/gobwas/influent/pull/1#issue-104757844)
+
 ### 0.2.3 (04-09-2015)
 ______________________
 

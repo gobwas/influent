@@ -7,6 +7,13 @@
     "email": "gobwas@gmail.com",
     "url": "https://github.com/gobwas"
   },
+  "contributors": [
+    {
+      "name": "Eli Perelman",
+      "email": "eli@eliperelman.com",
+      "url": "http://eliperelman.com"
+    }
+  ],
   "repository": "https://github.com/gobwas/influent",
   "license": "MIT",
   "keywords": [

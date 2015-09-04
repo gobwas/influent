@@ -99,7 +99,6 @@ client
     });
 ```
 
-
 ## API
 
 ### `influent.createClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.HttpClient]]`
@@ -199,7 +198,7 @@ When measurement is `Object`, it should have structure like:
     tags: {
         tagName: string
     },
-    timestamp: number
+    timestamp: number | string | Date
 }
 ```
 
@@ -235,7 +234,10 @@ ______________________
 ##### `new influent.Measurement(key: string)`
 ##### `measurement.addTag(key: string, value: string)`
 ##### `measurement.addField(key: string, value: influent.Value)`
-##### `measurement.setTimestamp(timestamp: string | number | Date)`
+##### `measurement.setTimestamp(timestamp: string)`
+
+Sets timestamp to the measurement. Using numeric `string`, [cause it make sense](https://github.com/gobwas/influent/pull/1#issuecomment-137720514) 
+on a big numbers with precision in nanoseconds.
 
 ______________________
 
