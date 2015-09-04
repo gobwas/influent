@@ -45,7 +45,7 @@
     "vinyl-source-stream": "^1.1.0"
   },
   "scripts": {
-    "test": "mocha ./test/unit"
+    "test": "mocha --recursive ./test/unit"
   },
   "main": "./index.js"
 }
