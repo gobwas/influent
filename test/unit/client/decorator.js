@@ -2,6 +2,7 @@ var DecoratorClient = require("../../../lib/client/decorator").DecoratorClient;
 var Client = require("../../../lib/client").Client;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Value = require("../../../lib/value").Value;
+var influent = require("../../../index");
 var chai = require("chai");
 var chaiAsPromised = require("chai-as-promised");
 var sinon  = require("sinon");
@@ -102,11 +103,11 @@ describe("DecoratorClient", function() {
             result = instance.writeOne({
                 key: "key",
                 tags: {
-                    tag: "tag"
+                    some_tag: "tag"
                 },
                 fields: {
-                    field: "field",
-                    val: new Value("val")
+                    some_field: "field",
+                    another_field: new Value("field")
                 },
                 timestamp: new Date(stamp)
             });
@@ -122,8 +123,13 @@ describe("DecoratorClient", function() {
                 expect(measurement).instanceof(Measurement);
                 expect(measurement.timestamp).equal(stamp.toString());
                 expect(measurement.key).equal("key");
-                expect(measurement.fields).deep.equal({ field: new Value("field"), val: new Value("val") });
-                expect(measurement.tags).deep.equal({ tag: "tag" });
+                expect(measurement.fields).deep.equal({
+                    some_field: new Value("field"),
+                    another_field: new Value("field")
+                });
+                expect(measurement.tags).deep.equal({
+                    some_tag: "tag"
+                });
             });
         });
 
@@ -137,14 +143,7 @@ describe("DecoratorClient", function() {
             // when
             result = instance.writeOne({
                 key: "key",
-                tags: {
-                    tag: "tag"
-                },
-                fields: {
-                    field: "field",
-                    val: new Value("val")
-                },
-                timestamp: Date.now()
+                timestamp: stamp
             });
 
             // then
@@ -156,6 +155,41 @@ describe("DecoratorClient", function() {
                 measurement = writeStub.firstCall.args[0];
 
                 expect(measurement.timestamp).equal(stamp.toString());
+            });
+        });
+
+        it("should cast json-ified values", function() {
+            var writeStub, result;
+
+            // before
+            writeStub = sinon.stub(client, "writeOne", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            result = instance.writeOne({
+                key: "key",
+                fields: {
+                    some_field: {
+                        data: 10,
+                        type: influent.type.INT64
+                    },
+                    another_field: {
+                        data: "str"
+                    }
+                }
+            });
+
+            // then
+            return result.then(function() {
+                var measurement;
+
+                measurement = writeStub.firstCall.args[0];
+
+                expect(measurement.fields).deep.equal({
+                    some_field: new Value(10, influent.type.INT64),
+                    another_field: new Value("str")
+                });
             });
         });
 
@@ -201,22 +235,66 @@ describe("DecoratorClient", function() {
         });
 
         it("should call client", function() {
-            var packStub, writeStub, measurements, line,
-                promise;
+            var writeStub, promise;
 
             // before
-            measurements = [];
             writeStub = sinon.stub(client, "writeMany", function() {
                 return Promise.resolve();
             });
 
             // when
-            promise = instance.writeMany(measurements);
+            promise = instance.writeMany([]);
 
             // then
             return promise
                 .then(function() {
                     expect(writeStub.callCount).equal(1);
+                });
+        });
+
+        it("should try cast non typed measurements", function() {
+            var writeStub, stamp, promise;
+
+            // before
+            writeStub = sinon.stub(client, "writeMany", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            stamp = 0;
+            promise = instance.writeMany([
+                {
+                    key: "key",
+                    fields: {
+                        some_field: "field",
+                        another_field: new Value("field")
+                    },
+                    tags: {
+                        some_tag: "tag"
+                    },
+                    timestamp: stamp
+                }
+            ]);
+
+            // then
+            return promise
+                .then(function() {
+                    var measurement;
+
+                    expect(writeStub.callCount).equal(1);
+
+                    measurement = writeStub.firstCall.args[0][0];
+
+                    expect(measurement).instanceof(Measurement);
+                    expect(measurement.timestamp).equal(stamp.toString());
+                    expect(measurement.key).equal("key");
+                    expect(measurement.fields).deep.equal({
+                        some_field: new Value("field"),
+                        another_field: new Value("field")
+                    });
+                    expect(measurement.tags).deep.equal({
+                        some_tag: "tag"
+                    });
                 });
         });
     });
