@@ -281,9 +281,9 @@ Be sure, that you have at least these global objects and object methods:
 ## Compatibility
 
 InfluxDB | Influent
--------------------
-`0.9.2` | `^0.2.3`
-`0.9.3` | `^0.3.0`
+---------|---------
+`0.9.2`  | `^0.2.3`
+`0.9.3`  | `^0.3.0`
 
 
 ## License
