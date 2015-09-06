@@ -1,5 +1,38 @@
 var gulp = require("gulp");
 
+gulp.task('test', function (done) {
+    var istanbul = require("gulp-istanbul");
+    var mocha = require("gulp-mocha");
+
+    gulp.src(['./lib/**/*.js'])
+        .pipe(istanbul())
+        .pipe(istanbul.hookRequire())
+        .on('finish', function () {
+            gulp.src(['test/unit/**/*.js'])
+                .pipe(mocha())
+                .pipe(istanbul.writeReports())
+                // todo uncomment this while all tests are done
+                //.pipe(istanbul.enforceThresholds({ thresholds: { global: 90 } }))
+                .on('end', done);
+        });
+});
+
+gulp.task("coveralls", function() {
+    var coveralls = require('gulp-coveralls');
+
+    return gulp.src('./coverage/lcov.info')
+        .pipe(coveralls());
+});
+
+gulp.task("ci", function(done) {
+    var runSequence = require("run-sequence");
+
+    runSequence(
+        "test",
+        done
+    );
+});
+
 gulp.task("browser", function() {
     var source = require("vinyl-source-stream");
     var buffer = require("vinyl-buffer");

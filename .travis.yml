@@ -1,4 +1,11 @@
 language: node_js
+
 node_js:
   - 'iojs'
   - '0.12'
+
+script:
+    - npm run task ci
+
+#after_success:
+#    - npm run task coveralls
