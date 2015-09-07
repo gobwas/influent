@@ -1,4 +1,4 @@
-#  [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
+# :ocean: [![NPM version][npm-image]][npm-url] [![Build Status][travis-image]][travis-url] [![Dependency Status][daviddm-image]][daviddm-url]
 
 > InfluxDB javascript driver
 
@@ -56,10 +56,10 @@ influent
             .writeOne({
                 key: "myseries",
                 tags: {
-                    tag: "sweet"
+                    some_tag: "sweet"
                 },
                 fields: {
-                    value: 10
+                    some_field: 10
                 },
                 timestamp: Date.now()
             })
@@ -89,11 +89,17 @@ client
     .writeOne({
         key: "myseries",
         tags: {
-            tag: "sweet"
+            some_tag: "sweet"
         },
         fields: {
             // this will be written as 10i, and saved as int64 10 into InfluxDB
-            value: new Value(10, influent.type.INT64)
+            some_field: new influent.Value(10, influent.type.INT64),
+            
+            // another way to do the same thing, is to pass this value description
+            another_field: {
+                data: 10,
+                type: influent.type.INT64
+            }
         },
         timestamp: Date.now()
     });
@@ -271,6 +277,14 @@ Be sure, that you have at least these global objects and object methods:
 + `Object.keys`;
 + `Array.forEach`;
 + `XMLHttpRequest`.
+
+## Compatibility
+
+InfluxDB | Influent
+---------|---------
+`0.9.2`  | `^0.2.3`
+`0.9.3`  | `^0.3.0`
+
 
 ## License
 
