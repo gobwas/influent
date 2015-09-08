@@ -43,7 +43,8 @@ influent
         // optional
         
         precision: "ms",
-        epoch: "ms"
+        epoch: "ms",
+        max_batch: 5000
     })
     .then(function(client) {
         client
@@ -134,6 +135,7 @@ The `config` should have structure like:
     
     precision: enum[n, u, ms, s, m, h]
     epoch: enum[n, u, ms, s, m, h]
+    max_batch: number
 }
 
 ```

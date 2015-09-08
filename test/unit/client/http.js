@@ -14,9 +14,9 @@ describe("HttpClient", function() {
 
     beforeEach(function() {
         options = {
-            username: (username = chance.word()),
-            password: (password = chance.word()),
-            database: (database = chance.word()),
+            username:  (username = chance.word()),
+            password:  (password = chance.word()),
+            database:  (database = chance.word()),
             max_batch: (max_batch = chance.integer({ min: 2, max: 5 }))
         };
     });
