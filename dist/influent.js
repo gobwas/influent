@@ -96,15 +96,23 @@ function tryCastMeasurement(def) {
 
     measurement = new Measurement(key);
 
-    if (fields = def.fields) {
+    fields = def.fields;
+    if (!_.isUndefined(fields)) {
         assert(_.isObject(fields), "Fields is expected to be an object");
 
         _.forEachIn(fields, function(value, field) {
-            measurement.addField(field, (value instanceof Value) ? value : new Value(value));
+            if (value instanceof Value) {
+                measurement.addField(field, value);
+            } else if (_.isObject(value)) {
+                measurement.addField(field, new Value(value.data, value.type));
+            } else {
+                measurement.addField(field, new Value(value));
+            }
         });
     }
 
-    if (tags = def.tags) {
+    tags = def.tags;
+    if (!_.isUndefined(tags)) {
         assert(_.isObject(tags), "Tags is expected to be an object");
 
         _.forEachIn(tags, function(value, tag) {
@@ -112,7 +120,8 @@ function tryCastMeasurement(def) {
         });
     }
 
-    if (timestamp = def.timestamp) {
+    timestamp = def.timestamp;
+    if (!_.isUndefined(timestamp)) {
         if (_.isString(timestamp)) {
             measurement.setTimestamp(timestamp);
         } else if (_.isNumber(timestamp)) {
@@ -191,7 +200,10 @@ HttpClient = Client.extend(
             assert(_.isString(options.username), "options.username is expected to be a string");
             assert(_.isString(options.password), "options.password is expected to be a string");
             assert(_.isString(options.database), "options.database is expected to be a string");
-            assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
+
+            if (!_.isUndefined(options.max_batch)) {
+                assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
+            }
 
             precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
             precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
@@ -775,7 +787,7 @@ exports.pick = function(source, keys) {
     return result;
 };
 
-["Object", "String", "Number", "Boolean", "Array"].forEach(function(type) {
+["Object", "String", "Number", "Boolean", "Array", "Undefined"].forEach(function(type) {
     exports["is" + type] = function(obj) {
         return exports.getTypeOf(obj) == type;
     };
