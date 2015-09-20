@@ -38,13 +38,7 @@ influent
                 host:     "localhost",
                 port:     8086
             }
-        ],
-        
-        // optional
-        
-        precision: "ms",
-        epoch: "ms",
-        max_batch: 5000
+        ]
     })
     .then(function(client) {
         client
@@ -136,6 +130,7 @@ The `config` should have structure like:
     precision: enum[n, u, ms, s, m, h]
     epoch: enum[n, u, ms, s, m, h]
     max_batch: number
+    chunk_size: number
 }
 
 ```
@@ -158,6 +153,7 @@ Options could be an object with:
 ```js
 {
     epoch: enum[n, u, ms, s, m, h]
+    chunk_size: number
 }
 
 ```
@@ -169,6 +165,7 @@ Options could be an object with:
 ```js
 {
     precision: enum[n, u, ms, s, m, h]
+    max_batch: number
 }
 
 ```

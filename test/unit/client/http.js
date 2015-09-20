@@ -214,15 +214,14 @@ describe("HttpClient", function() {
             });
 
             it("should batch requests", function() {
-                var serializeStub, getHostStub, requestStub,
-                  line, promise, points;
+                var requestStub, line, promise, points;
 
                 // before
-                serializeStub = sinon.stub(serializer, "serialize", function() {
+                sinon.stub(serializer, "serialize", function() {
                     return Promise.resolve("line");
                 });
 
-                getHostStub = sinon.stub(instance, "getHost", function() {
+                sinon.stub(instance, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
@@ -246,7 +245,7 @@ describe("HttpClient", function() {
                     new Measurement("j")
                 ];
 
-                promise = instance.writeMany(points, { precision: (precision = "s") });
+                promise = instance.writeMany(points);
 
                 // then
                 return promise
@@ -255,12 +254,53 @@ describe("HttpClient", function() {
                   });
             });
 
+            it("should batch requests by given option", function() {
+                var requestStub, line, promise, points;
+
+                // before
+                sinon.stub(serializer, "serialize", function() {
+                    return Promise.resolve("line");
+                });
+
+                sinon.stub(instance, "getHost", function() {
+                    return Promise.resolve(host);
+                });
+
+                requestStub = sinon.stub(http, "request", function() {
+                    return Promise.resolve({
+                        statusCode: 204
+                    });
+                });
+
+                // when
+                points = [
+                    new Measurement("a"),
+                    new Measurement("b"),
+                    new Measurement("c"),
+                    new Measurement("d"),
+                    new Measurement("e"),
+                    new Measurement("f"),
+                    new Measurement("g"),
+                    new Measurement("h"),
+                    new Measurement("i"),
+                    new Measurement("j")
+                ];
+
+                promise = instance.writeMany(points, { max_batch: 5 });
+
+                // then
+                return promise
+                  .then(function() {
+                      expect(requestStub.callCount).equal(2);
+                  });
+            });
+
         });
 
         describe("query", function() {
             
             it("should send query", function() {
-                var promise, query, getHostStub, requestStub;
+                var epoch, chunk_size, promise, query, getHostStub, requestStub;
 
                 // before
                 query = chance.word();
@@ -277,8 +317,8 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.query(query, { epoch: (epoch = "s") });
-                
+                promise = instance.query(query, { epoch: (epoch = "s"), chunk_size: (chunk_size = 5000) });
+
                 // then
                 return promise.then(function() {
                     var config;
@@ -301,7 +341,8 @@ describe("HttpClient", function() {
                     expect(config.query).to.deep.equal({
                         db: database,
                         q:  query,
-                        epoch: epoch
+                        epoch: epoch,
+                        chunk_size: chunk_size
                     });
                 })
             });

@@ -6,7 +6,7 @@ var chance = require("chance");
 
 describe("utils", function() {
 
-    describe("isNumericString", function() {
+    describe("isNumericString()", function() {
 
         it("should return true when string is numeric", function() {
             // when
@@ -30,6 +30,22 @@ describe("utils", function() {
 
             // then
             expect(utils.isNumericString(obj)).to.be.false
+        });
+
+    });
+
+    describe("chunks()", function() {
+
+        it("should split list well", function() {
+            var size;
+
+            // when
+            var list = [1,2,3,4];
+
+            // then
+            for (size = 1; size <= 5; size++) {
+                expect(utils.chunks(list, size)).to.have.length(Math.ceil(list.length / size));
+            }
         });
 
     });
