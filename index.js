@@ -1,12 +1,12 @@
-var Client          = require("./lib/client").Client;
+var Client          = require("./lib/client/client").Client;
 var HttpClient      = require("./lib/client/http").HttpClient;
 var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
-var Serializer      = require("./lib/serializer").Serializer;
+var Serializer      = require("./lib/serializer/serializer").Serializer;
 var LineSerializer  = require("./lib/serializer/line").LineSerializer;
 var Value           = require("./lib/value").Value;
 var Measurement     = require("./lib/measurement").Measurement;
 var Http            = require("hurl/lib/node").NodeHttp;
-var Host            = require("./lib/host").Host;
+var Host            = require("./lib/client/host").Host;
 var type            = require("./lib/type");
 
 var assert = require("assert");
@@ -51,7 +51,7 @@ exports.createClient = function(config) {
     });
 
     return client
-        .check()
+        .ping()
         .then(function() {
             var decorator;
 

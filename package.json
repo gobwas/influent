@@ -1,6 +1,6 @@
 {
   "name": "influent",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "InfluxDB driver",
   "author": {
     "name": "Sergey Kamardin",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "gulp-coveralls": "^0.1.4",
-    "hurl": "^0.2.0",
+    "hurl": "^0.2.2",
     "inherits-js": "^0.1.1",
     "run-sequence": "^1.1.2"
   },
@@ -50,14 +50,14 @@
     "gulp-umd": "^0.2.0",
     "literalify": "^0.4.0",
     "lodash": "^3.10.0",
-    "mocha": "^2.2.5",
+    "mocha": "^2.3.2",
     "querystring": "^0.2.0",
     "sinon": "^1.15.4",
     "vinyl-buffer": "^1.0.0",
     "vinyl-source-stream": "^1.1.0"
   },
   "scripts": {
-    "test": "gulp test",
+    "test": "mocha --recursive ./test/unit",
     "task": "gulp"
   },
   "main": "./index.js"

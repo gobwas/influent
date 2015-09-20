@@ -1,5 +1,5 @@
 var DecoratorClient = require("../../../lib/client/decorator").DecoratorClient;
-var Client = require("../../../lib/client").Client;
+var Client = require("../../../lib/client/client").Client;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Value = require("../../../lib/value").Value;
 var influent = require("../../../index");

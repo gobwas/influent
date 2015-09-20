@@ -1,7 +1,8 @@
 var HttpClient = require("../../../lib/client/http").HttpClient;
-var Serializer = require("../../../lib/serializer").Serializer;
+var Pong = require("../../../lib/client/pong").Pong;
+var Serializer = require("../../../lib/serializer/serializer").Serializer;
 var Measurement = require("../../../lib/measurement").Measurement;
-var Host = require("../../../lib/host").Host;
+var Host = require("../../../lib/client/host").Host;
 var Http = require("hurl/lib/http").Http;
 var querystring = require("querystring");
 var expect = require("chai").expect;
@@ -90,7 +91,7 @@ describe("HttpClient", function() {
 
     describe("methods", function() {
         var instance, host, serializer, http,
-            precision, epoch;
+            precision;
 
         beforeEach(function() {
             serializer = Object.create(Serializer.prototype);
@@ -103,6 +104,86 @@ describe("HttpClient", function() {
 
             instance.injectHttp(http);
             instance.injectSerializer(serializer);
+        });
+
+        describe("ping", function() {
+
+            it("should make request on each host", function() {
+                var instance, hostA, hostB, hostC, hostAStr, hostBStr, hostCStr, hostAPong, hostBPong, hostCPong,
+                    requestStub, promise, expectations;
+
+                // before
+                hostA = new Host("http", "127.0.0.1", 8186);
+                hostB = new Host("http", "127.0.0.2", 8286);
+                hostC = new Host("http", "127.0.0.3", 8386);
+                hostAStr = "http://127.0.0.1:8186/ping";
+                hostBStr = "http://127.0.0.2:8286/ping";
+                hostCStr = "http://127.0.0.3:8386/ping";
+
+                instance = new HttpClient(options);
+                instance.injectHttp(http);
+                instance.addHost(hostA);
+                instance.addHost(hostB);
+                instance.addHost(hostC);
+
+                requestStub = sinon.stub(http, "request", function(url) {
+                    switch (url) {
+                        case hostAStr: {
+                            return Promise.resolve({
+                                statusCode: 204,
+                                headers: {
+                                    "x-influxdb-version": "0.9.3-nightly-548b898",
+                                    "date": "Fri, 04 Sep 2015 18:48:02 GMT"
+                                }
+                            });
+                        }
+                        case hostBStr: {
+                            return Promise.resolve({
+                                statusCode: 500,
+                                body: "Internal server error"
+                            });
+                        }
+                        case hostCStr: {
+                            return Promise.reject({
+                                code: "ECONNREFUSED"
+                            });
+                        }
+                        default: {
+                            return Promise.reject();
+                        }
+                    }
+                });
+
+                hostAPong = new Pong(true);
+                hostAPong.setVersion("0.9.3-nightly-548b898");
+                hostAPong.setDate(new Date("Fri, 04 Sep 2015 18:48:02 GMT"));
+
+                hostBPong = new Pong(false);
+                hostBPong.setInfo("500: Internal server error");
+
+                hostCPong = new Pong(false);
+                hostCPong.setInfo("ECONNREFUSED")
+
+                expectations = [
+                    {host: hostA, status: hostAPong},
+                    {host: hostB, status: hostBPong},
+                    {host: hostC, status: hostCPong}
+                ];
+
+                // when
+                promise = instance.ping();
+
+                // then
+                return promise.then(function(list) {
+                    expect(requestStub.callCount).equal(3);
+                    expect(requestStub.getCall(0).args[0]).equal("http://127.0.0.1:8186/ping");
+                    expect(requestStub.getCall(1).args[0]).equal("http://127.0.0.2:8286/ping");
+                    expect(requestStub.getCall(2).args[0]).equal("http://127.0.0.3:8386/ping");
+
+                    expect(list).to.deep.equal(expectations);
+                });
+            });
+
         });
 
         describe("writeOne", function() {
@@ -249,9 +330,9 @@ describe("HttpClient", function() {
 
                 // then
                 return promise
-                  .then(function() {
-                      expect(requestStub.callCount).equal(Math.ceil(points.length / max_batch));
-                  });
+                    .then(function() {
+                        expect(requestStub.callCount).equal(Math.ceil(points.length / max_batch));
+                    });
             });
 
             it("should batch requests by given option", function() {
@@ -290,15 +371,15 @@ describe("HttpClient", function() {
 
                 // then
                 return promise
-                  .then(function() {
-                      expect(requestStub.callCount).equal(2);
-                  });
+                    .then(function() {
+                        expect(requestStub.callCount).equal(2);
+                    });
             });
 
         });
 
         describe("query", function() {
-            
+
             it("should send query", function() {
                 var epoch, chunk_size, promise, query, getHostStub, requestStub;
 
@@ -346,7 +427,7 @@ describe("HttpClient", function() {
                     });
                 })
             });
-            
+
         });
 
     });
