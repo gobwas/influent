@@ -10,7 +10,7 @@ root.influent = factory();
 var require;
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var inherits = require("inherits-js");
-var _ = require("./utils");
+var _ = require("./../utils");
 var assert = require("assert");
 
 /**
@@ -25,22 +25,10 @@ Client.prototype = {
     constructor: Client,
 
     /**
-     * Checks if client could work with given options.
+     * @abstract
      */
-    check: function() {
-        var self = this;
-
-        return this
-            .query("show databases")
-            .then(function(response) {
-                var index;
-
-                index = _.flatten(response.results[0].series[0].values).indexOf(self.options.database);
-
-                if (index == -1) {
-                    throw new Error("Database not found: \"" + self.options.database +  "\"");
-                }
-            });
+    ping: function() {
+        throw new TypeError("Method 'query' must be implemented");
     },
 
     /**
@@ -76,8 +64,8 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"./utils":10,"assert":"assert","inherits-js":24}],2:[function(require,module,exports){
-var Client = require("../client").Client;
+},{"./../utils":11,"assert":"assert","inherits-js":25}],2:[function(require,module,exports){
+var Client = require("./client").Client;
 var assert   = require("assert");
 var Measurement = require("../measurement").Measurement;
 var Value = require("../value").Value;
@@ -158,23 +146,60 @@ DecoratorClient = Client.extend(
             return this.client.check();
         },
 
-        writeMany: function(measurements) {
+        writeMany: function(measurements, options) {
             assert(_.isArray(measurements), "Array is expected");
-            return this.client.writeMany(measurements.map(tryCastMeasurement));
+            return this.client.writeMany(measurements.map(tryCastMeasurement), options);
         },
 
-        writeOne: function(measurement) {
-            return this.client.writeOne(tryCastMeasurement(measurement));
+        writeOne: function(measurement, options) {
+            return this.client.writeOne(tryCastMeasurement(measurement), options);
         }
     }
 );
 
 exports.DecoratorClient = DecoratorClient;
-},{"../client":1,"../measurement":5,"../utils":10,"../value":11,"assert":"assert"}],3:[function(require,module,exports){
-var Client = require("../client").Client;
-var Serializer = require("../serializer").Serializer;
+},{"../measurement":6,"../utils":11,"../value":12,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
+var assert = require("assert");
+var _ = require("./../utils");
+var Info = require("./info").Info;
+
+/**
+ * @class Host
+ * @constructor
+ * @final
+ */
+function Host(protocol, host, port) {
+    assert(_.isString(protocol), "String is expected for protocol");
+    assert(_.isString(host), "String is expected for host");
+    assert(_.isNumber(port), "Number is expected for port");
+
+    this.protocol = protocol;
+    this.host = host;
+    this.port = port;
+
+    this.info = null;
+}
+
+Host.prototype = {
+    constructor: Host,
+
+    updateInfo: function(info) {
+        assert(info instanceof Info, "Info is expected");
+        this.info = info;
+    },
+
+    toString: function() {
+        return this.protocol + "://" + this.host + ":" + this.port;
+    }
+};
+
+exports.Host = Host;
+},{"./../utils":11,"./info":5,"assert":"assert"}],4:[function(require,module,exports){
+var Client = require("./client").Client;
+var Info = require("./info").Info;
+var Serializer = require("../serializer/serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
-var Host = require("../host").Host;
+var Host = require("./host").Host;
 var assert = require("assert");
 var Http = require("hurl/lib/http").Http;
 var _ = require("../utils");
@@ -196,19 +221,25 @@ HttpClient = Client.extend(
         constructor: function(options) {
             Client.prototype.constructor.apply(this, arguments);
 
+            // required options assertions
             assert(_.isObject(options),          "options is expected to be an Object");
             assert(_.isString(options.username), "options.username is expected to be a string");
             assert(_.isString(options.password), "options.password is expected to be a string");
             assert(_.isString(options.database), "options.database is expected to be a string");
 
+            // optional options assertions
             if (!_.isUndefined(options.max_batch)) {
                 assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
             }
-
+            if (!_.isUndefined(options.chunk_size)) {
+                assert(_.isNumber(options.chunk_size), "options.chunk_size is expected to be a number");
+            }
             precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
             precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
 
             this.hosts = [];
+            this.lastHealthCheck = -1;
+            this.activeHost = null;
         },
 
         injectHttp: function(http) {
@@ -227,15 +258,33 @@ HttpClient = Client.extend(
         },
 
         getHost: function() {
-            var self = this;
+            var self = this,
+                findHost;
 
-            return new Promise(function(resolve, reject) {
-                if (self.hosts.length == 0) {
-                    return reject(new Error("Could not get host"));
-                }
+            if (!this.activeHost || (this.lastHealthCheck + this.options.health_check_duration) <= Date.now()) {
+                findHost = _
+                    .any(this.hosts.map(function(host) {
+                        return self
+                            ._pingHost(host)
+                            .then(function() {
+                                return host;
+                            });
+                    }))
+                    .then(function(host) {
+                        self.activeHost = host;
+                        self.lastHealthCheck = Date.now();
 
-                resolve(self.hosts[0]);
-            });
+                        return host;
+                    });
+            } else {
+                findHost = Promise.resolve(this.activeHost);
+            }
+
+            return findHost;
+        },
+
+        ping: function() {
+            return _.any(this.hosts.map(this._pingHost.bind(this)));
         },
 
         query: function(query, options) {
@@ -244,8 +293,11 @@ HttpClient = Client.extend(
             assert(_.isString(query), "String is expected");
 
             options = options || {};
+            if (!_.isUndefined(options.chunk_size)) {
+                assert(_.isNumber(options.chunk_size),  "options.chunk_size is expected to be a number");
+            }
             precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
-            options = _.extend({}, this.options, _.pick(options, "epoch"));
+            options = _.extend({}, this.options, _.pick(options, "epoch", "chunk_size"));
 
             return this
                 .getHost()
@@ -256,6 +308,10 @@ HttpClient = Client.extend(
 
                     if (_.isString(options.epoch)) {
                         queryObj["epoch"] = options.epoch;
+                    }
+
+                    if (_.isNumber(options.chunk_size)) {
+                        queryObj["chunk_size"] = options.chunk_size;
                     }
 
                     return self.http
@@ -286,44 +342,54 @@ HttpClient = Client.extend(
         },
 
         writeMany: function(measurements, options) {
-            var self = this,
-                chunk, parts, i, pos, size;
+            var self = this;
 
             assert(_.isArray(measurements), "Array is expected");
 
             options = options || {};
-            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
-            options = _.extend({}, this.options, _.pick(options, "precision"));
-
-            i = 0;
-            size = this.options.max_batch;
-
-            parts = [];
-
-            while (true) {
-                pos = i * size;
-                chunk = measurements.slice(pos, pos + size);
-
-                if (chunk.length == 0) {
-                    break;
-                }
-
-                parts.push(chunk);
-                i++;
+            if (!_.isUndefined(options.max_batch)) {
+                assert(_.isNumber(options.max_batch),  "options.max_batch is expected to be a number");
             }
+            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
+            options = _.extend({}, this.options, _.pick(options, "precision", "max_batch"));
 
-            return Promise.all(parts.map(function(measurements) {
-                return Promise
-                    .all(measurements.map(function(measurement) {
-                        return self.serializer.serialize(measurement);
-                    }))
-                    .then(function(list) {
-                        return self._write(list.join("\n"), options);
-                    });
-            }));
+            // split measurements to `max_batch` limited parts
+            return Promise.all(
+                _
+                    .chunks(measurements, options.max_batch)
+                    .map(function(measurements) {
+                        return Promise
+                            .all(measurements.map(function(measurement) {
+                                return self.serializer.serialize(measurement);
+                            }))
+                            .then(function(lines) {
+                                return self._writeData(lines.join("\n"), options);
+                            })
+                    })
+            );
         },
 
-        _write: function(data, options) {
+        _pingHost: function(host) {
+            return this.http
+                .request(host.toString() + "/ping", {
+                    method: "HEAD"
+                })
+                .then(function(resp) {
+                    var info;
+
+                    if (resp.statusCode != 204) {
+                        throw new Error("Ping error: " + resp.statusCode + ": " + resp.body);
+                    }
+
+                    info = new Info();
+                    info.setVersion(resp.headers["x-influxdb-version"]);
+                    info.setDate(new Date(resp.headers["date"]));
+
+                    host.updateInfo(info);
+                });
+        },
+
+        _writeData: function(data, options) {
             var self = this;
 
             return this
@@ -354,6 +420,10 @@ HttpClient = Client.extend(
                                 }
 
                                 switch (resp.statusCode) {
+                                    case 200: {
+                                        return reject(new Error("InfluxDB could not complete request: " + resp.body.toString()))
+                                    }
+
                                     case 400: {
                                         return reject(new Error("InfluxDB invalid syntax"));
                                     }
@@ -370,41 +440,34 @@ HttpClient = Client.extend(
 
     {
         DEFAULTS: _.extend({}, Client.DEFAULTS, {
-            max_batch: 5000
+            max_batch:             5000,
+            health_check_duration: 1000 * 60 * 30 // every 30 minutes
         })
     }
 );
 
 exports.HttpClient = HttpClient;
-},{"../client":1,"../host":4,"../measurement":5,"../precision":6,"../serializer":7,"../utils":10,"assert":"assert","hurl/lib/http":18}],4:[function(require,module,exports){
+},{"../measurement":6,"../precision":7,"../serializer/serializer":9,"../utils":11,"./client":1,"./host":3,"./info":5,"assert":"assert","hurl/lib/http":19}],5:[function(require,module,exports){
 var assert = require("assert");
-var _ = require("./utils");
+var _ = require("../utils");
 
-/**
- * @class Host
- * @constructor
- * @final
- */
-function Host(protocol, host, port) {
-    assert(_.isString(protocol), "String is expected for protocol");
-    assert(_.isString(host), "String is expected for host");
-    assert(_.isNumber(port), "Number is expected for port");
-
-    this.protocol = protocol;
-    this.host = host;
-    this.port = port;
+function Info() {
+    this.version = null;
+    this.date = null;
 }
 
-Host.prototype = {
-    constructor: Host,
-
-    toString: function() {
-        return this.protocol + "://" + this.host + ":" + this.port;
-    }
+Info.prototype.setVersion = function(version) {
+    assert(_.isString(version), "String is expected");
+    this.version = version;
 };
 
-exports.Host = Host;
-},{"./utils":10,"assert":"assert"}],5:[function(require,module,exports){
+Info.prototype.setDate = function(date) {
+    assert(date instanceof Date, "Date is expected");
+    this.date = date;
+};
+
+exports.Info = Info;
+},{"../utils":11,"assert":"assert"}],6:[function(require,module,exports){
 var Value  = require("./value").Value;
 var assert = require("assert");
 var _      = require("./utils");
@@ -458,7 +521,7 @@ Measurement.prototype = {
 
 
 exports.Measurement = Measurement;
-},{"./utils":10,"./value":11,"assert":"assert"}],6:[function(require,module,exports){
+},{"./utils":11,"./value":12,"assert":"assert"}],7:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
@@ -499,34 +562,8 @@ exports.assert = function(precision, nullable, msg) {
     var values = _.values(MAP);
     assert((nullable ? precision == null : false) || values.indexOf(precision) != -1, msg.replace("%values%", values.join(",")));
 };
-},{"./utils":10,"assert":"assert"}],7:[function(require,module,exports){
-var inherits = require("inherits-js");
-
-/**
- * @abstract
- */
-function Serializer() {
-    //
-}
-
-Serializer.prototype = {
-    constructor: Serializer,
-
-    /**
-     * @abstract
-     */
-    serialize: function(measurement) {
-        throw new TypeError("Method 'serialize' must be implemented");
-    }
-};
-
-Serializer.extend = function(p, s) {
-    return inherits(this, p, s);
-};
-
-exports.Serializer = Serializer;
-},{"inherits-js":24}],8:[function(require,module,exports){
-var Serializer      = require("../serializer").Serializer;
+},{"./utils":11,"assert":"assert"}],8:[function(require,module,exports){
+var Serializer      = require("./serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var STRING      = require("../type").STRING;
 var BOOLEAN     = require("../type").BOOLEAN;
@@ -685,7 +722,33 @@ LineSerializer = Serializer.extend(
 );
 
 exports.LineSerializer = LineSerializer;
-},{"../measurement":5,"../serializer":7,"../type":9,"../utils":10,"assert":"assert"}],9:[function(require,module,exports){
+},{"../measurement":6,"../type":10,"../utils":11,"./serializer":9,"assert":"assert"}],9:[function(require,module,exports){
+var inherits = require("inherits-js");
+
+/**
+ * @abstract
+ */
+function Serializer() {
+    //
+}
+
+Serializer.prototype = {
+    constructor: Serializer,
+
+    /**
+     * @abstract
+     */
+    serialize: function(measurement) {
+        throw new TypeError("Method 'serialize' must be implemented");
+    }
+};
+
+Serializer.extend = function(p, s) {
+    return inherits(this, p, s);
+};
+
+exports.Serializer = Serializer;
+},{"inherits-js":25}],10:[function(require,module,exports){
 var _ = require("./utils");
 
 var STRING  = 0;
@@ -728,7 +791,11 @@ exports.FLOAT64 = FLOAT64;
 exports.INT64 = INT64;
 exports.BOOLEAN = BOOLEAN;
 exports.TYPE = TYPE;
-},{"./utils":10}],10:[function(require,module,exports){
+},{"./utils":11}],11:[function(require,module,exports){
+var assert = require("assert");
+
+exports.noop = function(){};
+
 exports.getTypeOf = (function() {
     var typeReg = /\[object ([A-Z][a-z]+)\]/;
 
@@ -777,7 +844,6 @@ exports.pick = function(source, keys) {
     }
 
     result = {};
-
     exports.forEachIn(source, function(value, key) {
         if (needles.indexOf(key) != -1) {
             result[key] = value;
@@ -785,6 +851,44 @@ exports.pick = function(source, keys) {
     });
 
     return result;
+};
+
+exports.isMatch = function(obj, criteria) {
+    var i, key, keys, len;
+
+    keys = Object.keys(criteria);
+    len = keys.length;
+
+    for (i = 0; i < len; i++) {
+        key = keys[i];
+        if (obj[key] !== criteria[key]) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+exports.findWhere = function(collection, criteria) {
+    var i, len, item, matcher;
+
+    if (_.isFunction(criteria)) {
+        matcher = criteria;
+    } else {
+        matcher = function(item) {
+            return exports.isMatch(item, criteria);
+        };
+    }
+
+    len = collection.length;
+    for (i = 0; i < len; i++) {
+        item = collection[i];
+        if (matcher.call(null, item)) {
+            return item;
+        }
+    }
+
+    return null;
 };
 
 ["Object", "String", "Number", "Boolean", "Array", "Undefined"].forEach(function(type) {
@@ -805,7 +909,58 @@ exports.flatten = function(list) {
         return result.concat(exports.isArray(item) ? exports.flatten(item) : item);
     }, []);
 };
-},{}],11:[function(require,module,exports){
+
+exports.chunks = function(source, size) {
+    var i, index, chunks, chunk;
+
+    assert(exports.isArray(source), "Array is expected to be a source");
+    assert(exports.isNumber(size), "Number is expected to be a size");
+    assert(size > 0, "Size must be a positive number");
+
+    i = 0;
+    chunks = [];
+    while (true) {
+        index = i * size;
+        chunk = source.slice(index, index + size);
+
+        if (chunk.length == 0) {
+            break;
+        }
+
+        chunks.push(chunk);
+        i++;
+    }
+
+    return chunks;
+};
+
+exports.any = function(promises) {
+    return new Promise(function(resolve, reject) {
+        var fulfilled, rejected, total;
+
+        total = promises.length;
+        fulfilled = false;
+        rejected = 0;
+
+        promises.forEach(function(promise) {
+            promise
+                .then(function(value) {
+                    if (!fulfilled) {
+                        fulfilled = true;
+                        resolve(value);
+                    }
+                })
+                ['catch'](function(err) {
+                    if (!fulfilled && ++rejected == total) {
+                        reject(err);
+                    }
+                });
+        });
+    });
+};
+
+
+},{"assert":"assert"}],12:[function(require,module,exports){
 var TYPE   = require("./type").TYPE;
 var getInfluxTypeOf = require("./type").getInfluxTypeOf;
 var assert = require("assert");
@@ -830,7 +985,7 @@ function Value(data, type) {
 }
 
 exports.Value = Value;
-},{"./type":9,"assert":"assert"}],12:[function(require,module,exports){
+},{"./type":10,"assert":"assert"}],13:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -855,14 +1010,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1452,7 +1607,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":13,"_process":15,"inherits":12}],15:[function(require,module,exports){
+},{"./support/isBuffer":14,"_process":16,"inherits":13}],16:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1485,7 +1640,9 @@ function drainQueue() {
         currentQueue = queue;
         queue = [];
         while (++queueIndex < len) {
-            currentQueue[queueIndex].run();
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
         }
         queueIndex = -1;
         len = queue.length;
@@ -1537,14 +1694,13 @@ process.binding = function (name) {
     throw new Error('process.binding is not supported');
 };
 
-// TODO(shtylman)
 process.cwd = function () { return '/' };
 process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
 };
 process.umask = function() { return 0; };
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 var inherits = require("inherits-js");
 var HttpError;
 
@@ -1581,7 +1737,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":24}],17:[function(require,module,exports){
+},{"inherits-js":25}],18:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -1602,7 +1758,7 @@ TimeoutHttpError = HttpError.extend(
 
 exports.TimeoutHttpError = TimeoutHttpError;
 
-},{"../error":16}],18:[function(require,module,exports){
+},{"../error":17}],19:[function(require,module,exports){
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
@@ -1706,7 +1862,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":19,"assert":"assert","debug":21,"events":"events","inherits-js":24}],19:[function(require,module,exports){
+},{"./utils":20,"assert":"assert","debug":22,"events":"events","inherits-js":25}],20:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -1776,7 +1932,7 @@ exports.uniqueId = function(key) {
     return ++counter;
 };
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 var Http      = require("./http").Http,
     _         = require("./utils"),
     HttpError = require("./error").HttpError,
@@ -1963,7 +2119,7 @@ XhrHttp = Http.extend(
 
 exports.XhrHttp = XhrHttp;
 
-},{"./error":16,"./error/timeout":17,"./http":18,"./utils":19,"querystring":"querystring"}],21:[function(require,module,exports){
+},{"./error":17,"./error/timeout":18,"./http":19,"./utils":20,"querystring":"querystring"}],22:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -2133,7 +2289,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":22}],22:[function(require,module,exports){
+},{"./debug":23}],23:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -2332,7 +2488,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":23}],23:[function(require,module,exports){
+},{"ms":24}],24:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -2459,7 +2615,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -2500,7 +2656,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":26}],25:[function(require,module,exports){
+},{"./utils/extend":27}],26:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -2527,7 +2683,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -2550,7 +2706,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":25}],27:[function(require,module,exports){
+},{"./each":26}],28:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2632,7 +2788,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3059,7 +3215,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":14}],"events":[function(require,module,exports){
+},{"util/":15}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3363,15 +3519,15 @@ function isUndefined(arg) {
 }
 
 },{}],"influent":[function(require,module,exports){
-var Client          = require("./lib/client").Client;
+var Client          = require("./lib/client/client").Client;
 var HttpClient      = require("./lib/client/http").HttpClient;
 var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
-var Serializer      = require("./lib/serializer").Serializer;
+var Serializer      = require("./lib/serializer/serializer").Serializer;
 var LineSerializer  = require("./lib/serializer/line").LineSerializer;
 var Value           = require("./lib/value").Value;
 var Measurement     = require("./lib/measurement").Measurement;
 var Http            = require("hurl/lib/xhr").XhrHttp;
-var Host            = require("./lib/host").Host;
+var Host            = require("./lib/client/host").Host;
 var type            = require("./lib/type");
 
 var assert = require("assert");
@@ -3416,7 +3572,7 @@ exports.createClient = function(config) {
     });
 
     return client
-        .check()
+        .ping()
         .then(function() {
             var decorator;
 
@@ -3427,13 +3583,13 @@ exports.createClient = function(config) {
         });
 };
 
-},{"./lib/client":1,"./lib/client/decorator":2,"./lib/client/http":3,"./lib/host":4,"./lib/measurement":5,"./lib/serializer":7,"./lib/serializer/line":8,"./lib/type":9,"./lib/utils":10,"./lib/value":11,"assert":"assert","hurl/lib/xhr":20}],"querystring":[function(require,module,exports){
+},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/host":3,"./lib/client/http":4,"./lib/measurement":6,"./lib/serializer/line":8,"./lib/serializer/serializer":9,"./lib/type":10,"./lib/utils":11,"./lib/value":12,"assert":"assert","hurl/lib/xhr":21}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":27,"./encode":28}]},{},[]);
+},{"./decode":28,"./encode":29}]},{},[]);
 
 return require("influent");
 }));
