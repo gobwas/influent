@@ -19,6 +19,5 @@ after_success:
 #    - npm run task coveralls
 
 after_script:
-    - echo "InfluxDB logs:\n"
     - cat $HOME/influx.log
 
