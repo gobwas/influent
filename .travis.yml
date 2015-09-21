@@ -7,5 +7,9 @@ node_js:
 script:
     - npm run task ci
 
-#after_success:
+after_success:
 #    - npm run task coveralls
+    - wget http://s3.amazonaws.com/influxdb/influxdb_latest_amd64.deb
+    - sudo dpkg -i influxdb_latest_amd64.deb
+    - sudo service influxdb start
+    - npm run task test_system
