@@ -6,11 +6,14 @@ node_js:
   - 'iojs'
   - '0.12'
 
+before_install:
+    - wget http://s3.amazonaws.com/influxdb/influxdb_latest_amd64.deb
+    - dpkg -i influxdb_latest_amd64.deb
+    - service influxdb start
+
 script:
     - npm run task ci
+    - npm run test_system
 
 after_success:
 #    - npm run task coveralls
-    - brew update
-    - brew install influxdb
-    - npm test_system
