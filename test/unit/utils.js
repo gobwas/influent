@@ -50,4 +50,51 @@ describe("utils", function() {
 
     });
 
+    describe("any()", function() {
+
+        it("should resolve with first value", function() {
+
+            return utils
+                .any([
+                    new Promise(function(resolve, reject) {
+                        setTimeout(resolve.bind(null, 'a'), 10);
+                    }),
+                    new Promise(function(resolve, reject) {
+                        setTimeout(resolve.bind(null, 'b'), 20);
+                    }),
+                    new Promise(function(resolve, reject) {
+                        setTimeout(reject.bind(null, 'c'), 15);
+                    })
+                ])
+                .then(function(value) {
+                    expect(value).equal('a')
+                });
+
+        });
+
+        it("should reject with last reason", function() {
+
+            return utils
+                .any([
+                    new Promise(function(resolve, reject) {
+                        setTimeout(reject.bind(null, 'a'), 10);
+                    }),
+                    new Promise(function(resolve, reject) {
+                        setTimeout(reject.bind(null, 'b'), 20);
+                    }),
+                    new Promise(function(resolve, reject) {
+                        setTimeout(reject.bind(null, 'c'), 30);
+                    })
+                ])
+                .then(function(value) {
+                    throw new Error("Expected to be rejected");
+                })
+                .catch(function(reason) {
+                    expect(reason).equal('c');
+                });
+
+        });
+
+    });
+
 });

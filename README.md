@@ -131,6 +131,10 @@ The `config` should have structure like:
     epoch: enum[n, u, ms, s, m, h]
     max_batch: number
     chunk_size: number
+    
+    // client implementation additional options:
+    
+    ...
 }
 
 ```
@@ -142,9 +146,9 @@ ______________________
 Abstract class of InfluxDB client. Has several abstract methods:
 
 ##### `new influent.Client([options: Object])`
-##### `client.check()` -> `Promise[Object]`
+##### `client.ping()` -> `Promise[]`
 
-Checks availability for use given database.
+Pings given hosts. Return promise, that if any host return successful status - resolved without value.
 
 ##### `client.query(query: string[, options: Object])` -> `Promise[Object]`
 
@@ -180,9 +184,26 @@ ______________________
 
 Implementation of `influent.Client` for http usage. In addition to abstract methods has methods below.
 
+##### `new influent.HttpClient(options: Object)`
+
+Where additional to `influent.Client` options are:
+
+```js
+{
+    // in which period client should recheck availability of hosts
+    // by default this set to 30 minutes
+    health_check_duration: number (milliseconds)
+}
+
+```
+
 ##### `httpClient.injectHttp(http: hurl.Http)`
 
 Injector of http service, that is implementation of abstract `hurl.Http` class. `hurl` is just npm dependency.
+
+##### `httpClient.getHost()` -> `Promise[influent.Host]`
+
+Returns current active host.
 
 ______________________
 
@@ -250,6 +271,15 @@ ______________________
 
 ##### `new influent.Host(protocol: string, host: string, port: number)`
 ##### `host.toString()` -> `String`
+##### `host.updateInfo(info)`
+
+______________________
+
+### Class: `influent.Info`
+
+Represents `client.ping()` meta information.
+
+##### `new influent.Info()`
 
 ______________________
 
