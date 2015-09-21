@@ -8,7 +8,8 @@ node_js:
 
 before_install:
     - wget http://s3.amazonaws.com/influxdb/influxdb_latest_amd64.deb
-    - dpkg -i --force-not-root --root=$HOME influxdb_latest_amd64.deb
+    - dpkg-deb -x influxdb_latest_amd64.deb $HOME
+#    - dpkg -i --force-not-root --root=$HOME influxdb_latest_amd64.deb
     - $HOME/bin/influxdb
 
 script:
