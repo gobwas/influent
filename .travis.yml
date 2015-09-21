@@ -7,12 +7,9 @@ node_js:
   - '0.12'
 
 before_install:
-    - wget http://s3.amazonaws.com/influxdb/influxdb_latest_amd64.deb
+    - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.1_amd64.deb
     - dpkg-deb -x influxdb_latest_amd64.deb $HOME
-    - dpkg-deb -c influxdb_latest_amd64.deb
-    - ls -lah $HOME/etc
-#    - dpkg -i --force-not-root --root=$HOME influxdb_latest_amd64.deb
-#    - $HOME/bin/influxdb
+    - $HOME/opt/influxdb/versions/0.9.0/influxd
 
 script:
     - npm run task ci
