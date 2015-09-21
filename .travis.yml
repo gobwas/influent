@@ -9,8 +9,7 @@ node_js:
 before_install:
     - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.1_amd64.deb
     - dpkg-deb -x influxdb_0.9.4.1_amd64.deb $HOME
-    - $HOME/opt/influxdb/versions/0.9.4.1/scripts/influxdb.service start
-#    - $HOME/opt/influxdb/versions/0.9.4.1/influxd > /dev/null 2>&1 &
+    - $HOME/opt/influxdb/versions/0.9.4.1/influxd &
 
 script:
     - npm run task ci
