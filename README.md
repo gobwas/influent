@@ -203,7 +203,7 @@ Injector of http service, that is implementation of abstract `hurl.Http` class. 
 
 ##### `httpClient.getHost()` -> `Promise[influent.Host]`
 
-Returns current active host.
+Returns current active host. First host that was pinged succesfully, becomes active. This choice is tale after `health_check_duration` period.
 
 ______________________
 
