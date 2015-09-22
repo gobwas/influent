@@ -167,7 +167,10 @@ describe("HttpClient", function() {
                     expect(requestStub.getCall(1).args[0]).equal("http://127.0.0.2:8286/ping");
                     expect(requestStub.getCall(2).args[0]).equal("http://127.0.0.3:8386/ping");
 
-                    expect(hostA.info).to.deep.equal(info);
+                    expect(i).to.deep.equal({
+                        host: hostA,
+                        info: info
+                    });
                 });
             });
 

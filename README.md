@@ -146,9 +146,9 @@ ______________________
 Abstract class of InfluxDB client. Has several abstract methods:
 
 ##### `new influent.Client([options: Object])`
-##### `client.ping()` -> `Promise[]`
+##### `client.ping()` -> `Promise[Object{ info: influent.Info, host: influent.Host }]`
 
-Pings given hosts. Return promise, that if any host return successful status - resolved without value.
+Pings given InfluxDB hosts. Returns promise that - if any host return successful status - resolved with first on to respond host and `Info` about that host.
 
 ##### `client.query(query: string[, options: Object])` -> `Promise[Object]`
 
@@ -271,7 +271,6 @@ ______________________
 
 ##### `new influent.Host(protocol: string, host: string, port: number)`
 ##### `host.toString()` -> `String`
-##### `host.updateInfo(info)`
 
 ______________________
 
