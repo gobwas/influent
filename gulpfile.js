@@ -33,6 +33,58 @@ gulp.task("ci", function(done) {
     );
 });
 
+gulp.task("webtest", ["browser"], function() {
+    var glob = require("glob");
+    var Browserify = require("browserify");
+    var source = require("vinyl-source-stream");
+    var buffer = require("vinyl-buffer");
+    var replace = require("gulp-replace");
+    var File = require("vinyl");
+
+    return new Promise(function(resolve, reject) {
+        glob("./test/+(unit|system)/**/*.js", function(err, files) {
+            if (err) {
+                reject(err);
+                return
+            }
+
+            resolve(files);
+        });
+    })
+    .then(function(files) {
+        var bundler = new Browserify();
+
+        file = new File({
+            // lay on window.influent
+            contents: new Buffer("module.exports = influent;")
+        });
+        bundler.require(file, { expose: "../../index.js" });
+
+        files.forEach(function(file) {
+            console.log('test >>', file);
+            bundler.add(file);
+        });
+
+        return new Promise(function(resolve, reject) {
+            bundler.bundle()
+                .pipe(source("bundle.js"))
+                .pipe(buffer())
+                .pipe(replace(/\.(catch|export)\b/gi, "['$1']"))
+                .pipe(gulp.dest("./test/web"))
+                .on('error', reject)
+                .on('finish', resolve);
+        });
+    })
+});
+
+gulp.task("karma", function(done) {
+    var karma = require('karma').server;
+
+    karma.start({
+        configFile: __dirname + '/.karma.local.js'
+    }, done);
+});
+
 gulp.task("browser", function() {
     var source = require("vinyl-source-stream");
     var buffer = require("vinyl-buffer");
@@ -71,8 +123,7 @@ gulp.task("browser", function() {
     bundler.bundle()
         .pipe(source("influent.js"))
         .pipe(buffer())
-        .pipe(replace(/\.catch\b/gi, "['catch']"))
-        .pipe(replace(/\.export\b/gi, "['export']"))
+        .pipe(replace(/\.(catch|export)\b/gi, "['$1']"))
         .pipe(umd({
             exports: function(file) {
                 return 'require("influent")';
