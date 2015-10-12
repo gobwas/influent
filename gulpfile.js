@@ -64,7 +64,6 @@ gulp.task("webtest", ["browser"], function() {
         bundler.require(file, { expose: "../../index.js" });
 
         files.forEach(function(file) {
-            console.log('test >>', file);
             bundler.add(file);
         });
 
