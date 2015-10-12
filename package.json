@@ -1,6 +1,6 @@
 {
   "name": "influent",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "InfluxDB driver",
   "author": {
     "name": "Sergey Kamardin",
@@ -28,12 +28,12 @@
     "node": ">=0.12"
   },
   "dependencies": {
-    "gulp-coveralls": "^0.1.4",
     "hurl": "^0.2.7",
-    "inherits-js": "^0.1.1",
-    "run-sequence": "^1.1.2"
+    "inherits-js": "^0.1.1"
   },
   "devDependencies": {
+    "gulp-coveralls": "^0.1.4",
+    "run-sequence": "^1.1.2",
     "assert": "^1.3.0",
     "browserify": "^11.0.1",
     "browserify-replace": "^0.9.0",

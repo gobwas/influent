@@ -3,5 +3,11 @@ coverage
 build
 node_modules
 *.log
+.karma.*
+.travis.yml
+TODO.md
+bower.json
+gulpfile.js
+*.iml
 .DS_Store
 .npmignore
