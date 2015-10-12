@@ -83,11 +83,10 @@ gulp.task("webtest", ["browser"], function() {
 });
 
 function karma(name, cb) {
-    var karma = require('karma').server;
+    var Server = require('karma').Server;
 
-    karma.start({
-        configFile: name
-    }, cb);
+    karma = new Server({configFile: name}, cb);
+    karma.start();
 }
 
 gulp.task("karma:local", function(done) {
