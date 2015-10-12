@@ -29,6 +29,8 @@ gulp.task("ci", function(done) {
 
     runSequence(
         "test",
+        "webtest",
+        "karma:ci",
         done
     );
 });
@@ -40,6 +42,7 @@ gulp.task("webtest", ["browser"], function() {
     var buffer = require("vinyl-buffer");
     var replace = require("gulp-replace");
     var File = require("vinyl");
+    var polyfiller = require("gulp-autopolyfiller");
 
     return new Promise(function(resolve, reject) {
         glob("./test/+(unit|system)/**/*.js", function(err, files) {
@@ -71,18 +74,28 @@ gulp.task("webtest", ["browser"], function() {
                 .pipe(buffer())
                 .pipe(replace(/\.(catch|export)\b/gi, "['$1']"))
                 .pipe(gulp.dest("./test/web"))
+                .pipe(polyfiller('polyfills.js'))
+                .pipe(gulp.dest("./test/web"))
                 .on('error', reject)
                 .on('finish', resolve);
         });
     })
 });
 
-gulp.task("karma", function(done) {
+function karma(name, cb) {
     var karma = require('karma').server;
 
     karma.start({
-        configFile: __dirname + '/.karma.local.js'
-    }, done);
+        configFile: name
+    }, cb);
+}
+
+gulp.task("karma:local", function(done) {
+    karma(__dirname + '/.karma.local.js', done)
+});
+
+gulp.task("karma:ci", function(done) {
+    karma(__dirname + '/.karma.ci.js', done)
 });
 
 gulp.task("browser", function() {
