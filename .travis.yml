@@ -13,6 +13,7 @@ before_install:
     - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.2_amd64.deb
     - dpkg-deb -x influxdb_0.9.4.2_amd64.deb $HOME
     - $HOME/opt/influxdb/versions/0.9.4.2/influxd > $HOME/influx.log 2>&1 &
+    - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -ac -screen 0 1280x1024x16"
 
 script:
     - npm run task ci
