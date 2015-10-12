@@ -2,7 +2,7 @@ var influent = require("../../index.js");
 var expect = require("chai").expect;
 var _      = require("lodash");
 
-describe("influent", function() {
+describe("System tests", function() {
 
     beforeEach(function() {
         return influent
