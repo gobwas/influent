@@ -1,6 +1,13 @@
 Change log
 ==========
 
+### 0.4.1 (12-10-2015)
+______________________
+
++ Fixed `ping` behaviour in browser - it now do not requires `X-Influxdb-Version` strictly;
++ Fixed `auth` behaviour in browser - it now works;
++ Added CI tests with `karma`.
+
 ### 0.4.0 (22-09-2015)
 ______________________
 
