@@ -1,6 +1,7 @@
 var HttpClient = require("../../../lib/client/http").HttpClient;
 var Info = require("../../../lib/client/info").Info;
 var Serializer = require("../../../lib/serializer/serializer").Serializer;
+var Elector = require("../../../lib/client/elector/elector").Elector;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Host = require("../../../lib/client/host").Host;
 var Http = require("hurl/lib/http").Http;
@@ -23,45 +24,13 @@ describe("HttpClient", function() {
     });
 
     describe("injectors", function() {
+        var instance;
 
-        describe("injectSerializer", function() {
-            var instance;
-
-            beforeEach(function() {
-                instance = new HttpClient(options);
-            });
-
-            it("should throw error, when serializer is not a Serializer", function() {
-                // when
-                function inject() {
-                    instance.injectSerializer({});
-                }
-
-                // then
-                expect(inject).to.throw("Serializer is expected");
-            });
-
-            it("should set serializer", function() {
-                var serializer;
-
-                //before
-                serializer = Object.create(Serializer.prototype);
-
-                // when
-                instance.injectSerializer(serializer);
-
-                // then
-                expect(instance.serializer).equal(serializer);
-            });
+        beforeEach(function() {
+            instance = new HttpClient(options);
         });
 
         describe("injectHttp", function() {
-            var instance;
-
-            beforeEach(function() {
-                instance = new HttpClient(options);
-            });
-
             it("should throw error, when http is not a Http", function() {
                 // when
                 function inject() {
@@ -96,6 +65,7 @@ describe("HttpClient", function() {
         beforeEach(function() {
             serializer = Object.create(Serializer.prototype);
             http = Object.create(Http.prototype);
+            elector = Object.create(Elector.prototype);
 
             host = new Host("http", "localhost", 8086);
 
@@ -104,24 +74,21 @@ describe("HttpClient", function() {
 
             instance.injectHttp(http);
             instance.injectSerializer(serializer);
+            instance.injectElector(elector);
         });
 
         describe("ping", function() {
 
             it("should make request on each host", function() {
-                var instance, hostA, hostB, hostC, info,
-                    requestStub, promise, expectations;
+                var host, info,
+                    getHostStub, requestStub, promise, expectations;
 
                 // before
-                hostA = new Host("http", "127.0.0.1", 8186);
-                hostB = new Host("http", "127.0.0.2", 8286);
-                hostC = new Host("http", "127.0.0.3", 8386);
+                host = new Host("http", "127.0.0.1", 8186);
 
-                instance = new HttpClient(options);
-                instance.injectHttp(http);
-                instance.addHost(hostA);
-                instance.addHost(hostB);
-                instance.addHost(hostC);
+                getHostStub = sinon.stub(elector, "getHost", function() {
+                    return Promise.resolve(host);
+                });
 
                 requestStub = sinon.stub(http, "request", function(url) {
                     var err;
@@ -135,17 +102,6 @@ describe("HttpClient", function() {
                                     "date": "Fri, 04 Sep 2015 18:48:02 GMT"
                                 }
                             });
-                        }
-                        case "http://127.0.0.2:8286/ping": {
-                            return Promise.resolve({
-                                statusCode: 500,
-                                body: "Internal server error"
-                            });
-                        }
-                        case "http://127.0.0.3:8386/ping": {
-                            err = new Error();
-                            err.code = "ECONNREFUSED";
-                            return Promise.reject(err);
                         }
                         default: {
                             return Promise.reject(new Error("No such host"));
@@ -162,13 +118,10 @@ describe("HttpClient", function() {
 
                 // then
                 return promise.then(function(i) {
-                    expect(requestStub.callCount).equal(3);
+                    expect(requestStub.callCount).equal(1);
                     expect(requestStub.getCall(0).args[0]).equal("http://127.0.0.1:8186/ping");
-                    expect(requestStub.getCall(1).args[0]).equal("http://127.0.0.2:8286/ping");
-                    expect(requestStub.getCall(2).args[0]).equal("http://127.0.0.3:8386/ping");
-
                     expect(i).to.deep.equal({
-                        host: hostA,
+                        host: host,
                         info: info
                     });
                 });
@@ -187,7 +140,7 @@ describe("HttpClient", function() {
                     return Promise.resolve("line");
                 });
 
-                getHostStub = sinon.stub(instance, "getHost", function() {
+                getHostStub = sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
@@ -244,7 +197,7 @@ describe("HttpClient", function() {
                     return Promise.resolve("line");
                 });
 
-                getHostStub = sinon.stub(instance, "getHost", function() {
+                getHostStub = sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
@@ -294,7 +247,7 @@ describe("HttpClient", function() {
                     return Promise.resolve("line");
                 });
 
-                sinon.stub(instance, "getHost", function() {
+                sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
@@ -335,7 +288,7 @@ describe("HttpClient", function() {
                     return Promise.resolve("line");
                 });
 
-                sinon.stub(instance, "getHost", function() {
+                sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
@@ -378,7 +331,7 @@ describe("HttpClient", function() {
                 // before
                 query = chance.word();
 
-                getHostStub = sinon.stub(instance, "getHost", function() {
+                getHostStub = sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
 
