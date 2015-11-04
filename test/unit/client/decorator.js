@@ -2,6 +2,7 @@ var DecoratorClient = require("../../../lib/client/decorator").DecoratorClient;
 var Client = require("../../../lib/client/client").Client;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Value = require("../../../lib/value").Value;
+var type = require("../../../lib/type");
 var influent = require("../../../index");
 var chai = require("chai");
 var chaiAsPromised = require("chai-as-promised");
@@ -70,7 +71,7 @@ describe("DecoratorClient", function() {
 
     });
 
-    describe("writeOne", function() {
+    describe("write", function() {
         var instance, client;
 
         beforeEach(function() {
@@ -83,152 +84,10 @@ describe("DecoratorClient", function() {
             var result;
 
             //before
-            sinon.stub(client, "writeOne", function() { return Promise.resolve(); });
+            sinon.stub(client, "write", function() { return Promise.resolve(); });
 
             // when
-            result = instance.writeOne(new Measurement("key"));
-
-            // then
-            expect(result).instanceof(Promise);
-        });
-
-        it("should try cast non typed measurements", function() {
-            var result, writeStub, stamp;
-
-            //before
-            writeStub = sinon.stub(client, "writeOne", function() { return Promise.resolve(); });
-            stamp = Date.now();
-
-            // when
-            result = instance.writeOne({
-                key: "key",
-                tags: {
-                    some_tag: "tag"
-                },
-                fields: {
-                    some_field: "field",
-                    another_field: new Value("field")
-                },
-                timestamp: new Date(stamp)
-            });
-
-            // then
-            return result.then(function() {
-                var measurement;
-
-                expect(writeStub.callCount).equal(1);
-
-                measurement = writeStub.firstCall.args[0];
-
-                expect(measurement).instanceof(Measurement);
-                expect(measurement.timestamp).equal(stamp.toString());
-                expect(measurement.key).equal("key");
-                expect(measurement.fields).deep.equal({
-                    some_field: new Value("field"),
-                    another_field: new Value("field")
-                });
-                expect(measurement.tags).deep.equal({
-                    some_tag: "tag"
-                });
-            });
-        });
-
-        it("should cast numerical timestamps to strings", function() {
-            var result, writeStub, stamp;
-
-            //before
-            writeStub = sinon.stub(client, "writeOne", function() { return Promise.resolve(); });
-            stamp = Date.now();
-
-            // when
-            result = instance.writeOne({
-                key: "key",
-                timestamp: stamp
-            });
-
-            // then
-            return result.then(function() {
-                var measurement;
-
-                expect(writeStub.callCount).equal(1);
-
-                measurement = writeStub.firstCall.args[0];
-
-                expect(measurement.timestamp).equal(stamp.toString());
-            });
-        });
-
-        it("should cast json-ified values", function() {
-            var writeStub, result;
-
-            // before
-            writeStub = sinon.stub(client, "writeOne", function() {
-                return Promise.resolve();
-            });
-
-            // when
-            result = instance.writeOne({
-                key: "key",
-                fields: {
-                    some_field: {
-                        data: 10,
-                        type: influent.type.INT64
-                    },
-                    another_field: {
-                        data: "str"
-                    }
-                }
-            });
-
-            // then
-            return result.then(function() {
-                var measurement;
-
-                measurement = writeStub.firstCall.args[0];
-
-                expect(measurement.fields).deep.equal({
-                    some_field: new Value(10, influent.type.INT64),
-                    another_field: new Value("str")
-                });
-            });
-        });
-
-        it("should call client", function() {
-            var writeStub, promise;
-
-            // before
-            writeStub = sinon.stub(client, "writeOne", function() {
-                return Promise.resolve();
-            });
-
-            // when
-            promise = instance.writeOne(new Measurement("key"));
-
-            // then
-            return promise
-                .then(function() {
-                    expect(writeStub.callCount).equal(1);
-                });
-        });
-    });
-
-    describe("writeMany", function() {
-        var instance, client;
-
-        beforeEach(function() {
-            instance = new DecoratorClient(options);
-            client = Object.create(Client.prototype);
-            instance.injectClient(client);
-        });
-
-        it("should return promise", function() {
-            var result;
-
-            //before
-            sinon.stub(client, "writeMany", function() { return Promise.resolve(); });
-
-            // when
-            result = instance.writeMany([ new Measurement("key") ]);
+            result = instance.write([ new Measurement("key") ]);
 
             // then
             expect(result).instanceof(Promise);
@@ -238,12 +97,12 @@ describe("DecoratorClient", function() {
             var writeStub, promise;
 
             // before
-            writeStub = sinon.stub(client, "writeMany", function() {
+            writeStub = sinon.stub(client, "write", function() {
                 return Promise.resolve();
             });
 
             // when
-            promise = instance.writeMany([]);
+            promise = instance.write([]);
 
             // then
             return promise
@@ -256,18 +115,18 @@ describe("DecoratorClient", function() {
             var writeStub, stamp, promise;
 
             // before
-            writeStub = sinon.stub(client, "writeMany", function() {
+            writeStub = sinon.stub(client, "write", function() {
                 return Promise.resolve();
             });
 
             // when
             stamp = 0;
-            promise = instance.writeMany([
+            promise = instance.write([
                 {
                     key: "key",
                     fields: {
                         some_field: "field",
-                        another_field: new Value("field")
+                        another_field: new Value("field", type.STRING)
                     },
                     tags: {
                         some_tag: "tag"
@@ -289,13 +148,122 @@ describe("DecoratorClient", function() {
                     expect(measurement.timestamp).equal(stamp.toString());
                     expect(measurement.key).equal("key");
                     expect(measurement.fields).deep.equal({
-                        some_field: new Value("field"),
-                        another_field: new Value("field")
+                        some_field: new Value("field", type.STRING),
+                        another_field: new Value("field", type.STRING)
                     });
                     expect(measurement.tags).deep.equal({
                         some_tag: "tag"
                     });
                 });
+        });
+
+        it("should cast numerical timestamps to strings", function() {
+            var result, writeStub, stamp;
+
+            //before
+            writeStub = sinon.stub(client, "write", function() { return Promise.resolve(); });
+            stamp = Date.now();
+
+            // when
+            result = instance.write([{
+                key: "key",
+                timestamp: stamp
+            }]);
+
+            // then
+            return result.then(function() {
+                var measurement;
+
+                expect(writeStub.callCount).equal(1);
+
+                measurement = writeStub.firstCall.args[0][0];
+
+                expect(measurement.timestamp).equal(stamp.toString());
+            });
+        });
+
+        it("should cast json-ified values", function() {
+            var writeStub, result;
+
+            // before
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            result = instance.write([{
+                key: "key",
+                fields: {
+                    some_field: {
+                        data: 10,
+                        type: influent.type.INT64
+                    },
+                    another_field: {
+                        data: "str"
+                    }
+                }
+            }]);
+
+            // then
+            return result.then(function() {
+                var measurement;
+
+                measurement = writeStub.firstCall.args[0][0];
+
+                expect(measurement.fields).deep.equal({
+                    some_field: new Value(10, type.INT64),
+                    another_field: new Value("str", type.STRING)
+                });
+            });
+        });
+
+        it("should cast single measurement to array", function() {
+            var writeStub, result;
+
+            // before
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            result = instance.write({
+                key: "test",
+                fields: {
+                    foo: "bar"
+                }
+            });
+
+            return result.then(function() {
+                expect(writeStub.firstCall.args[0]).to.be.array;
+            })
+        });
+
+        it("should cast `value` prop to same named field", function() {
+            var writeStub, result;
+
+            //before
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
+            result = instance.write({
+                key: "test",
+                value: 1,
+                fields: {
+                    "foo": "bar"
+                }
+            });
+
+            return result.then(function() {
+                var cast = writeStub.firstCall.args[0][0];
+
+                expect(cast.key).equal("test");
+                expect(cast.fields).deep.equal({
+                    value: new Value(1, type.FLOAT64),
+                    foo: new Value("bar", type.STRING)
+                });
+            });
+
         });
     });
 

@@ -70,8 +70,6 @@ describe("HttpClient", function() {
             host = new Host("http", "localhost", 8086);
 
             instance = new HttpClient(options);
-            instance.addHost(host);
-
             instance.injectHttp(http);
             instance.injectSerializer(serializer);
             instance.injectElector(elector);
@@ -129,64 +127,7 @@ describe("HttpClient", function() {
 
         });
 
-        describe("writeOne", function() {
-
-            it("should call serializer, getHost and then do request", function() {
-                var serializeStub, getHostStub, requestStub,
-                    promise;
-
-                // before
-                serializeStub = sinon.stub(serializer, "serialize", function() {
-                    return Promise.resolve("line");
-                });
-
-                getHostStub = sinon.stub(elector, "getHost", function() {
-                    return Promise.resolve(host);
-                });
-
-                requestStub = sinon.stub(http, "request", function() {
-                    return Promise.resolve({
-                        statusCode: 204
-                    });
-                });
-
-                // when
-                promise = instance.writeOne(new Measurement("key"), { precision: (precision = "s") });
-
-                // then
-                return promise
-                    .then(function() {
-                        var config;
-
-                        expect(serializeStub.callCount).equal(1);
-                        expect(getHostStub.callCount).equal(1);
-
-                        expect(getHostStub.calledAfter(serializeStub));
-
-                        expect(requestStub.callCount).equal(1);
-                        expect(requestStub.firstCall.args[0]).equal(host.toString() + "/write");
-
-                        config = requestStub.firstCall.args[1];
-
-                        expect(_.omit(config, "data")).to.deep.equal({
-                            "method": "POST",
-                            "auth": {
-                                "username": username,
-                                "password": password
-                            },
-                            "query": {
-                                "db": database,
-                                "precision": precision
-                            }
-                        });
-
-                        expect(config.data).equal("line");
-                    });
-            });
-
-        });
-
-        describe("writeMany", function() {
+        describe("write", function() {
 
             it("should call serializer, getHost and then do request", function() {
                 var serializeStub, getHostStub, requestStub,
@@ -208,7 +149,7 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.writeMany([ new Measurement("a"), new Measurement("b") ], { precision: (precision = "s") });
+                promise = instance.write([ new Measurement("a"), new Measurement("b") ], { precision: (precision = "s") });
 
                 // then
                 return promise
@@ -271,7 +212,7 @@ describe("HttpClient", function() {
                     new Measurement("j")
                 ];
 
-                promise = instance.writeMany(points);
+                promise = instance.write(points);
 
                 // then
                 return promise
@@ -312,7 +253,7 @@ describe("HttpClient", function() {
                     new Measurement("j")
                 ];
 
-                promise = instance.writeMany(points, { max_batch: 5 });
+                promise = instance.write(points, { max_batch: 5 });
 
                 // then
                 return promise
