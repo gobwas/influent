@@ -8,6 +8,7 @@ addons:
 node_js:
   - '4.1'
   - '0.12'
+  - '5'
 
 before_install:
     - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.2_amd64.deb
