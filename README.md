@@ -28,7 +28,7 @@ bower install --save influent
 var influent = require('influent');
 
 influent
-    .createClient({
+    .createHttpClient({
         username: "gobwas",
         password: "xxxx",
         database: "mydb",
@@ -46,9 +46,13 @@ influent
             .then(function(result) {
                 // ...
             });
+
+        // super simple point
+        client.write({ key: "myseries", value: 10 });
             
+        // more explicit point
         client
-            .writeOne({
+            .write({
                 key: "myseries",
                 tags: {
                     some_tag: "sweet"
@@ -80,8 +84,10 @@ There is a little bit problem with Javascript numbers, cause it could be both in
 ```js
 var influent = require("influent");
 
+// client creation somewhere
+
 client
-    .writeOne({
+    .write({
         key: "myseries",
         tags: {
             some_tag: "sweet"
@@ -102,10 +108,10 @@ client
 
 ## API
 
-### `influent.createClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.HttpClient]]`
+### `influent.createHttpClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.HttpClient]]`
 
-Default factory for creating client. Creates `influent.DecoratorClient` instance, with `influent.HttpClient` inside.
-This method calls `.check()` method of client, to make sure that connection is OK.
+Creates `influent.DecoratorClient` instance, with `influent.HttpClient` inside.
+This method makes `client.ping()`, to sure that connection is OK.
 
 The `config` should have structure like:
 
@@ -113,8 +119,8 @@ The `config` should have structure like:
 {
     server: {
         protocol: string
-        host: string
-        port: number
+        host:     string
+        port:     number
     }
     
     // or
@@ -127,14 +133,39 @@ The `config` should have structure like:
     
     // optional:
     
-    precision: enum[n, u, ms, s, m, h]
-    epoch: enum[n, u, ms, s, m, h]
-    max_batch: number
+    precision:  enum[n, u, ms, s, m, h]
+    epoch:      enum[n, u, ms, s, m, h]
+    max_batch:  number
     chunk_size: number
+}
+
+```
+
+______________________
+
+### `influent.createUdpClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.UdpClient]]`
+
+Default factory for creating udp client. Creates `influent.DecoratorClient` instance, with `influent.UdpClient` inside.
+This method makes `client.ping()`, to sure that connection is OK. Ping in UDP connection is impossible, so it used via `exec ping ...`.
+
+The `config` should have structure like:
+
+```js
+{
+    server: {
+        protocol: string
+        host:     string
+        port:     number
+    }
     
-    // client implementation additional options:
+    // or
     
-    ...
+    server: [ serverA... serverN ]
+    
+    // optional:
+    
+    max_batch:  number
+    safe_limit: number
 }
 
 ```
@@ -146,11 +177,52 @@ ______________________
 Abstract class of InfluxDB client. Has several abstract methods:
 
 ##### `new influent.Client([options: Object])`
+
 ##### `client.ping()` -> `Promise[Object{ info: influent.Info, host: influent.Host }]`
 
-Pings given InfluxDB hosts. Returns promise that - if any host return successful status - resolved with first on to respond host and `Info` about that host.
+Pings host.
 
 ##### `client.query(query: string[, options: Object])` -> `Promise[Object]`
+
+Asks for data.
+
+##### `client.writeOne(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
+
+Writes measurements.
+
+______________________
+
+### Class: `influent.NetClient`
+
+Abstract ancessor of `influent.Client`. Has several injector methods:
+
+##### `client.injectElector(elector: influent.Elector)`
+##### `client.injectSerializer(serializer: influent.Serializer)`
+
+______________________
+
+### Class: `influent.HttpClient`
+
+Implementation of `influent.NetClient` for http usage.
+
+##### `new influent.HttpClient(options: Object)`
+
+Where options could be like:
+
+```js
+{
+    username:   string,
+    password:   string,
+    database:   string,
+    
+    max_batch:  number,
+    chunk_size: number,
+    precision:  enum[n, u, ms, s, m, h]
+    epoch:      enum[n, u, ms, s, m, h]
+}
+```
+
+##### `httpClient.query(query: string[, options: Object])` -> `Promise[Object]`
 
 Options could be an object with:
 
@@ -162,7 +234,7 @@ Options could be an object with:
 
 ```
 
-##### `client.writeOne(measurement: influent.Measurement[, options: Object])` -> `Promise[]`
+##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
 
 Options could be an object with:
 
@@ -174,36 +246,46 @@ Options could be an object with:
 
 ```
 
-##### `client.writeMany(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
-
-Options the same as in `writeOne`.
-
-______________________
-
-### Class: `influent.HttpClient`
-
-Implementation of `influent.Client` for http usage. In addition to abstract methods has methods below.
-
-##### `new influent.HttpClient(options: Object)`
-
-Where additional to `influent.Client` options are:
-
-```js
-{
-    // in which period client should recheck availability of hosts
-    // by default this set to 30 minutes
-    health_check_duration: number (milliseconds)
-}
-
-```
-
 ##### `httpClient.injectHttp(http: hurl.Http)`
 
 Injector of http service, that is implementation of abstract `hurl.Http` class. `hurl` is just npm dependency.
 
-##### `httpClient.getHost()` -> `Promise[influent.Host]`
+______________________
 
-Returns current active host. First host that was pinged succesfully, becomes active. This choice is tale after `health_check_duration` period.
+### Class: `influent.UdpClient`
+
+Implementation of `influent.NetClient` for udp usage.
+
+##### `new influent.HttpClient(options: Object)`
+
+Where options could be like:
+
+```js
+{
+    max_batch:  number
+    safe_limit: number
+}
+```
+
+##### `httpClient.query(query: string[, options: Object])` -> `Promise[Object]`
+
+This method returns rejected `Promise`, cause there is no ability to fetch some data through udp from InfluxDB.
+
+##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
+
+Options could be an object with:
+
+```js
+{
+    max_batch:  number
+    safe_limit: number
+}
+
+```
+
+##### `httpClient.injectUdp(http: influent.Udp)`
+
+Injector of udp service.
 
 ______________________
 
@@ -236,10 +318,74 @@ Where `Object` is the same as for `writeOne` above.
 
 ______________________
 
-### Class: `influent.Serializer`
+### Class: `influent.Elector`
 
-##### `new influent.Serializer()`
-##### `serializer.serialize(measurement: influent.Measurement)` -> `Promise[String]`
+Represents strategy of electing host to send request.
+
+##### `new influent.Elector(hosts: Array[influent.Host][, options])`
+##### `elector.getHost()` -> `Promise[Host]`
+
+______________________
+
+### Class: `influent.BaseElector`
+
+Base strategy of election. Uses `influent.Ping` to check health.
+
+##### `new influent.BaseElector(hosts: Array[influent.Host][, options])`
+
+Where options:
+
+```js
+{
+    period: number
+}
+```
+
+##### `baseElector.injectPing(ping: influent.Ping)`
+
+______________________
+
+### Class: `influent.Ping`
+
+Represents strategy of checking host health.
+
+##### `new influent.Ping([, options])`
+##### `ping.pong()` -> `Promise[]`
+
+______________________
+
+### Class: `influent.HttpPing`
+
+Checks health via http request.
+
+##### `new influent.HttpPing([, options])`
+
+Where options:
+
+```js
+{
+    timeout: number
+}
+```
+
+##### `httpPing.injectHttp(http: hurl.Http)`
+
+______________________
+
+### Class: `influent.CmdPing`
+
+Checks health via `exec ping ...`.
+
+##### `new influent.CmdPing([, options])`
+
+Where options:
+
+```js
+{
+    timeout: number,
+    count:   number
+}
+```
 
 ______________________
 
