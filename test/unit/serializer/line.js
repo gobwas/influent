@@ -41,7 +41,7 @@ describe("LineSerializer", function() {
             // when
             measurement = new Measurement("cpu,0 1");
             measurement.addTag("server A,1", "my, cool, server");
-            measurement.addField("value A,1", new Value("str"));
+            measurement.addField("value A,1", new Value("str", type.STRING));
             result = instance.serialize(measurement);
 
             // then
@@ -97,7 +97,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(1));
+            measurement.addField("field", new Value(1, type.FLOAT64));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=1");
@@ -132,8 +132,8 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("b", new Value(1));
-            measurement.addField("a", new Value(0));
+            measurement.addField("b", new Value(1, type.FLOAT64));
+            measurement.addField("a", new Value(0, type.FLOAT64));
             result = instance.serialize(measurement);
 
             // then
@@ -146,7 +146,7 @@ describe("LineSerializer", function() {
             // when
             stamp = "1441236081554000001";
             measurement = new Measurement("key");
-            measurement.addField("a", new Value(0));
+            measurement.addField("a", new Value(0, type.FLOAT64));
             measurement.setTimestamp(stamp);
             result = instance.serialize(measurement);
 
