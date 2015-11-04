@@ -12,7 +12,7 @@ node_js:
 before_install:
     - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.2_amd64.deb
     - dpkg-deb -x influxdb_0.9.4.2_amd64.deb $HOME
-    - $HOME/opt/influxdb/versions/0.9.4.2/influxd > $HOME/influx.log 2>&1 &
+    - $HOME/opt/influxdb/versions/0.9.4.2/influxd --config $TRAVIS_BUILD_DIR/test/system/influxdb.conf > $HOME/influx.log 2>&1 &
     - export DISPLAY=:99.0
     - sh -e /etc/init.d/xvfb start
     - sleep 3 # give xvfb some time to start
