@@ -22,6 +22,7 @@ var type            = require("./lib/type");
 var assert = require("assert");
 var _ = require("./lib/utils");
 
+exports.type           = type;
 exports.Client         = Client;
 exports.NetClient      = NetClient;
 exports.HttpClient     = HttpClient;
@@ -38,7 +39,6 @@ exports.BaseElector    = BaseElector;
 exports.StubElector    = StubElector;
 exports.HttpPing       = HttpPing;
 exports.CmdPing        = CmdPing;
-exports.type           = type;
 exports.Udp            = Udp;
 exports.NodeUdp        = NodeUdp;
 

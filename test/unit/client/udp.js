@@ -112,12 +112,11 @@ describe("UdpClient", function() {
                         expect(sendStub.callCount).equal(1);
 
                         expect(sendStub.firstCall.args).deep.equal([
-                            "udp4",
+                            host.host,
+                            host.port,
                             buf,
                             0,
-                            buf.length,
-                            host.port,
-                            host.address
+                            buf.length                            
                         ]);
                     });
             });
