@@ -3,7 +3,6 @@ var Elector = require("../../../lib/client/elector/elector").Elector;
 var Host = require("../../../lib/client/elector/elector").Host;
 var expect = require("chai").expect;
 
-
 describe("NetClient", function() {
 
     describe("injectors", function() {

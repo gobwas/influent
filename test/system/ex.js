@@ -6,8 +6,8 @@ function sleep(n) {
     return function() {
         return new Promise(function(resolve) {
             setTimeout(resolve, n);
-        });    
-    }
+        });
+    };
 }
 
 describe("System tests", function() {
@@ -28,7 +28,7 @@ describe("System tests", function() {
                 return client
                     .query("drop database test")
                     .then(function() {
-                        return client.query("create database test")
+                        return client.query("create database test");
                     });
             });
     });
@@ -48,13 +48,13 @@ describe("System tests", function() {
             })
             .then(function(client) {
                 return client
-                    .write({ key: 'sut', fields: { value: "abcd" }, timestamp: 0 })
+                    .write({ key: "sut", fields: { value: "abcd" }, timestamp: 0 })
                     .then(function() {
                         return client.query("select * from sut");
                     })
                     .then(function(result) {
-                        expect(JSON.stringify(result)).equal('{"results":[{"series":[{"name":"sut","columns":["time","value"],"values":[["1970-01-01T00:00:00Z","abcd"]]}]}]}');
-                    })
+                        expect(JSON.stringify(result)).equal("{\"results\":[{\"series\":[{\"name\":\"sut\",\"columns\":[\"time\",\"value\"],\"values\":[[\"1970-01-01T00:00:00Z\",\"abcd\"]]}]}]}");
+                    });
             });
     });
 
@@ -94,9 +94,9 @@ describe("System tests", function() {
                         return httpClient.query("select * from sutudp");
                     })
                     .then(function(result) {
-                        expect(JSON.stringify(result)).equal('{"results":[{"series":[{"name":"sutudp","columns":["time","value"],"values":[["1970-01-01T00:00:00Z","hello_udp"]]}]}]}');
+                        expect(JSON.stringify(result)).equal("{\"results\":[{\"series\":[{\"name\":\"sutudp\",\"columns\":[\"time\",\"value\"],\"values\":[[\"1970-01-01T00:00:00Z\",\"hello_udp\"]]}]}]}");
                     });
-            })
+            });
     });
 
     it("should fail when unauthorized", function() {
@@ -114,9 +114,9 @@ describe("System tests", function() {
             })
             .then(function(client) {
                 return client
-                    .write({ key: 'sut', fields: { value: "abcd" }, timestamp: 0 })
+                    .write({ key: "sut", fields: { value: "abcd" }, timestamp: 0 })
                     .catch(function(err) {
-                        expect(err.message).equal('InfluxDB unauthorized user');
+                        expect(err.message).equal("InfluxDB unauthorized user");
                     });
             });
     });

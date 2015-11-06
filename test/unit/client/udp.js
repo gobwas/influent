@@ -16,7 +16,7 @@ chai.use(chaiAsPromised);
 chai.should();
 
 describe("UdpClient", function() {
-	var options, username, password, database, max_batch;
+    var options, username, password, database, max_batch;
 
     beforeEach(function() {
         options = {
@@ -24,62 +24,62 @@ describe("UdpClient", function() {
         };
     });
 
-	describe("constructor", function() {
+    describe("constructor", function() {
 
-	});
+    });
 
-	describe("instance", function() {
-		var instance, serializer, elector, host, udp;
+    describe("instance", function() {
+        var instance, serializer, elector, host, udp;
 
-		beforeEach(function() {
-			host = new Host("udp", "localhost", 8844);
+        beforeEach(function() {
+            host = new Host("udp", "localhost", 8844);
 
-			serializer = Object.create(Serializer.prototype);
-			elector = Object.create(Elector.prototype);
+            serializer = Object.create(Serializer.prototype);
+            elector = Object.create(Elector.prototype);
             udp = Object.create(Udp.prototype);
 
-			instance = new UdpClient(options);
+            instance = new UdpClient(options);
             instance.injectUdp(udp);
-			instance.injectElector(elector);
-			instance.injectSerializer(serializer);
-		});
+            instance.injectElector(elector);
+            instance.injectSerializer(serializer);
+        });
 
-		describe("ping", function() {
+        describe("ping", function() {
 
-			it("should use elector and return host", function() {
-				var getHostStub, result;
+            it("should use elector and return host", function() {
+                var getHostStub, result;
 
-				getHostStub = sinon.stub(elector, "getHost", function() {
-					return Promise.resolve(host);
-				});
+                getHostStub = sinon.stub(elector, "getHost", function() {
+                    return Promise.resolve(host);
+                });
 
-				// when
-				result = instance.ping();
+                // when
+                result = instance.ping();
 
-				// then
-				return result.then(function(h) {
-					expect(h).to.deep.equal({
-						info: new Info(),
-						host: host
-					});
+                // then
+                return result.then(function(h) {
+                    expect(h).to.deep.equal({
+                        info: new Info(),
+                        host: host
+                    });
 
-					expect(getHostStub.callCount).equal(1);
-				});
-			});
+                    expect(getHostStub.callCount).equal(1);
+                });
+            });
 
-		});
+        });
 
-		describe("query", function() {
+        describe("query", function() {
 
-			it("should return rejected promise", function() {
-				return instance.query().should.be.rejectedWith("Query is not allowed in udp client")
-			});
+            it("should return rejected promise", function() {
+                return instance.query().should.be.rejectedWith("Query is not allowed in udp client");
+            });
 
-		});
+        });
 
-		describe("write", function() {
-			
-			it("should call serializer, getHost and then do request", function() {
+        describe("write", function() {
+
+            it("should call serializer, getHost and then do request", function() {
                 var serializeStub, getHostStub, sendStub,
                     line, promise, buf;
 
@@ -99,7 +99,7 @@ describe("UdpClient", function() {
                 });
 
                 // when
-                promise = instance.write([ new Measurement("a"), new Measurement("b") ], { safe_limit: buf.length, max_batch: 2});
+                promise = instance.write([new Measurement("a"), new Measurement("b")], { safe_limit: buf.length, max_batch: 2});
 
                 // then
                 return promise
@@ -116,12 +116,12 @@ describe("UdpClient", function() {
                             host.port,
                             buf,
                             0,
-                            buf.length                            
+                            buf.length
                         ]);
                     });
             });
 
-		});
-	});
+        });
+    });
 
 });

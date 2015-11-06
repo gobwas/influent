@@ -44,7 +44,6 @@ exports.CmdPing        = CmdPing;
 exports.Udp            = Udp;
 exports.NodeUdp        = NodeUdp;
 
-
 function createHost(def) {
     return new Host(def.protocol, def.host, def.port);
 }
@@ -54,7 +53,7 @@ function resolveHosts(config) {
 
     server = config.server;
     if (_.isObject(server)) {
-        hosts = [ createHost(server) ];
+        hosts = [createHost(server)];
     } else if (_.isArray(server)) {
         hosts = server.map(createHost);
     } else {
@@ -149,10 +148,10 @@ exports.createHttpClient = function(config) {
 
     ping = new HttpPing(pingConfig);
     ping.injectHttp(new NodeHttp());
-    
+
     elector = new BaseElector(hosts, electorConfig);
     elector.injectPing(ping);
-    
+
     client.injectElector(elector);
 
     return wrapClient(client);

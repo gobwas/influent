@@ -5,84 +5,84 @@ var expect = chai.expect;
 
 describe("NodeUdp", function() {
 
-	describe("send", function() {
-		var dns, dgram, NodeUdp, instance;
+    describe("send", function() {
+        var dns, dgram, NodeUdp, instance;
 
-		beforeEach(function() {
-			cuculus.replace("dns", {
-		        lookup: function(address, cb) {}
-		    });
+        beforeEach(function() {
+            cuculus.replace("dns", {
+                lookup: function(address, cb) {}
+            });
 
-		    cuculus.replace("dgram", {
-		    	createSocket: function(type) {}
-		    });
+            cuculus.replace("dgram", {
+                createSocket: function(type) {}
+            });
 
-		    dns = require("dns");
-		    dgram = require("dgram");
-		    
-		    cuculus.drop("../../../lib/net/udp/node");
-		    NodeUdp = require("../../../lib/net/udp/node").NodeUdp;
+            dns = require("dns");
+            dgram = require("dgram");
 
-		    instance = new NodeUdp();
-		});
+            cuculus.drop("../../../lib/net/udp/node");
+            NodeUdp = require("../../../lib/net/udp/node").NodeUdp;
 
-		afterEach(function() {
-			cuculus.drop("dns");
-			cuculus.drop("dgram");
-			cuculus.drop("../../../lib/net/udp/node");
-		});
+            instance = new NodeUdp();
+        });
 
-		it("should lookup address", function() {
-			var host, port, buffer,
-				address, family, lookupStub,
-				createSocketStub, socket;
+        afterEach(function() {
+            cuculus.drop("dns");
+            cuculus.drop("dgram");
+            cuculus.drop("../../../lib/net/udp/node");
+        });
 
-			// before
-			host = "localhost";
-			port = 8080;
-			buffer = new Buffer("");
+        it("should lookup address", function() {
+            var host, port, buffer,
+            address, family, lookupStub,
+            createSocketStub, socket;
 
-			address = "127.0.0.1";
-			family = 4;
-			
-			lookupStub = sinon.stub(dns, "lookup", function(host, cb) {
-				cb(null, address, family);
-			});
+            // before
+            host = "localhost";
+            port = 8080;
+            buffer = new Buffer("");
 
-			socket = {
-				send: sinon.spy(function(buffer, offset, length, port, address, cb) {
-					cb()
-				})
-			};
+            address = "127.0.0.1";
+            family = 4;
 
-			createSocketStub = sinon.stub(dgram, "createSocket", function(type) {
-				return socket;
-			});
+            lookupStub = sinon.stub(dns, "lookup", function(host, cb) {
+                cb(null, address, family);
+            });
 
-			// when
-			var result = instance.send(host, port, buffer, 0, buffer.length);
+            socket = {
+                send: sinon.spy(function(buffer, offset, length, port, address, cb) {
+                    cb();
+                })
+            };
 
-			//then
-			return result.then(function() {
-				expect(lookupStub.callCount).equal(1);
-				expect(lookupStub.firstCall.args[0]).equal(host);
+            createSocketStub = sinon.stub(dgram, "createSocket", function(type) {
+                return socket;
+            });
 
-				expect(createSocketStub.callCount).equal(1);
-				expect(createSocketStub.firstCall.args[0]).equal("udp" + family);
+            // when
+            var result = instance.send(host, port, buffer, 0, buffer.length);
 
-				expect(socket.send.callCount).equal(1);
-				expect(socket.send.firstCall.args.slice(0, 5)).deep.equal([
-					buffer,
-					0,
-					buffer.length,
-					port,
-					address
-				]);
+            //then
+            return result.then(function() {
+                expect(lookupStub.callCount).equal(1);
+                expect(lookupStub.firstCall.args[0]).equal(host);
 
-				expect(lookupStub.calledBefore(createSocketStub)).to.be.true
-				expect(createSocketStub.calledBefore(socket.send)).to.be.true
-			});
-		});
-	})
+                expect(createSocketStub.callCount).equal(1);
+                expect(createSocketStub.firstCall.args[0]).equal("udp" + family);
+
+                expect(socket.send.callCount).equal(1);
+                expect(socket.send.firstCall.args.slice(0, 5)).deep.equal([
+                    buffer,
+                    0,
+                    buffer.length,
+                    port,
+                    address
+                ]);
+
+                expect(lookupStub.calledBefore(createSocketStub)).to.be.true;
+                expect(createSocketStub.calledBefore(socket.send)).to.be.true;
+            });
+        });
+    });
 
 });

@@ -124,7 +124,7 @@ describe("LineSerializer", function() {
             result = instance.serialize(measurement);
 
             // then
-            return result.should.become("key,a=0,b=1")
+            return result.should.become("key,a=0,b=1");
         });
 
         it("should sort keys of fields", function() {

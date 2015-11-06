@@ -84,10 +84,12 @@ describe("DecoratorClient", function() {
             var result;
 
             //before
-            sinon.stub(client, "write", function() { return Promise.resolve(); });
+            sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
 
             // when
-            result = instance.write([ new Measurement("key") ]);
+            result = instance.write([new Measurement("key")]);
 
             // then
             expect(result).instanceof(Promise);
@@ -161,7 +163,10 @@ describe("DecoratorClient", function() {
             var result, writeStub, stamp;
 
             //before
-            writeStub = sinon.stub(client, "write", function() { return Promise.resolve(); });
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
             stamp = Date.now();
 
             // when
@@ -235,7 +240,7 @@ describe("DecoratorClient", function() {
 
             return result.then(function() {
                 expect(writeStub.firstCall.args[0]).to.be.array;
-            })
+            });
         });
 
         it("should cast `value` prop to same named field", function() {
@@ -250,7 +255,7 @@ describe("DecoratorClient", function() {
                 key: "test",
                 value: 1,
                 fields: {
-                    "foo": "bar"
+                    foo: "bar"
                 }
             });
 

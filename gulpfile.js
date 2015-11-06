@@ -58,7 +58,7 @@ gulp.task("webtest", ["browser"], function() {
         var bundler = new Browserify();
 
         file = new File({
-            // lay on window.influent
+            // stick to window.influent
             contents: new Buffer("module.exports = influent;")
         });
         bundler.require(file, { expose: "../../index.js" });
@@ -127,10 +127,6 @@ gulp.task("browser", function() {
         }
     ]});
 
-    //bundler.transform(literalify.configure({
-    //    "jquery": "_$"
-    //}));
-
     bundler.bundle()
         .pipe(source("influent.js"))
         .pipe(buffer())
@@ -143,14 +139,7 @@ gulp.task("browser", function() {
                 return 'influent';
             },
             dependencies: function(file) {
-                return [
-                    //{
-                    //    name: '_$',
-                    //    amd: 'jquery',
-                    //    cjs: 'jquery',
-                    //    global: 'jQuery'
-                    //}
-                ];
+                return [];
             },
             template: path.join(__dirname, 'build/returnExports.ejs')
         }))

@@ -57,7 +57,6 @@ describe("HttpClient", function() {
 
     });
 
-
     describe("methods", function() {
         var instance, host, serializer, http,
             precision;
@@ -97,10 +96,11 @@ describe("HttpClient", function() {
                                 statusCode: 204,
                                 headers: {
                                     "x-influxdb-version": "0.9.3-nightly-548b898",
-                                    "date": "Fri, 04 Sep 2015 18:48:02 GMT"
+                                    date: "Fri, 04 Sep 2015 18:48:02 GMT"
                                 }
                             });
                         }
+
                         default: {
                             return Promise.reject(new Error("No such host"));
                         }
@@ -149,7 +149,7 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.write([ new Measurement("a"), new Measurement("b") ], { precision: (precision = "s") });
+                promise = instance.write([new Measurement("a"), new Measurement("b")], { precision: (precision = "s") });
 
                 // then
                 return promise
@@ -165,14 +165,14 @@ describe("HttpClient", function() {
                         config = requestStub.firstCall.args[1];
 
                         expect(_.omit(config, "data")).to.deep.equal({
-                            "method": "POST",
-                            "auth": {
-                                "username": username,
-                                "password": password
+                            method: "POST",
+                            auth: {
+                                username: username,
+                                password: password
                             },
-                            "query": {
-                                "db": database,
-                                "precision": precision
+                            query: {
+                                db: database,
+                                precision: precision
                             }
                         });
 
@@ -297,7 +297,7 @@ describe("HttpClient", function() {
 
                     // avoid to request some overhead options
                     expect(_.omit(config, "query", "auth")).to.deep.equal({
-                        "method": "GET"
+                        method: "GET"
                     });
 
                     expect(config.auth).to.deep.equal({
@@ -311,7 +311,7 @@ describe("HttpClient", function() {
                         epoch: epoch,
                         chunk_size: chunk_size
                     });
-                })
+                });
             });
 
         });

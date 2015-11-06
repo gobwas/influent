@@ -1,0 +1,142 @@
+
+{
+    "requirePaddingNewLinesBeforeExport": true,
+
+    "disallowSpacesInNamedFunctionExpression": {
+        "beforeOpeningRoundBrace": true
+    },
+
+    "requireSpacesInNamedFunctionExpression": {
+        "beforeOpeningCurlyBrace": true
+    },
+
+    "disallowSpacesInFunctionExpression": {
+        "beforeOpeningRoundBrace": true
+    },
+
+    "disallowSpacesInAnonymousFunctionExpression": {
+        "beforeOpeningRoundBrace": true
+    },
+
+    "disallowSpacesInFunctionDeclaration": {
+        "beforeOpeningRoundBrace": true
+    },
+
+    "disallowEmptyBlocks": true,
+
+    "disallowSpacesInCallExpression": true,
+
+    "disallowSpacesInsideArrayBrackets": {
+        "allExcept": [ "[", "]", "{", "}" ]
+    },
+
+    "disallowSpacesInsideParentheses": true,
+
+    "disallowQuotedKeysInObjects": {
+        "allExcept": ["reserved"]
+    },
+
+    "disallowSpaceAfterObjectKeys": true,
+
+    "disallowSpaceAfterPrefixUnaryOperators": true,
+
+    "disallowSpaceBeforePostfixUnaryOperators": true,
+
+    "disallowMixedSpacesAndTabs": true,
+
+    "disallowTrailingWhitespace": true,
+
+    "requireSpaceAfterComma": true,
+
+    "disallowYodaConditions": true,
+
+    "disallowKeywords": [ "with" ],
+
+    "disallowKeywordsOnNewLine": ["else"],
+
+    "disallowMultipleLineBreaks": true,
+
+    "disallowMultipleLineStrings": true,
+
+    "disallowMultipleVarDecl": {
+        "strict": true,
+        "allExcept": [
+            "undefined"
+        ]
+    },
+
+    "disallowSpaceBeforeComma": true,
+
+    "disallowSpaceBeforeSemicolon": {
+        "allExcept": [
+            "("
+        ]
+    },
+
+    "requireSpaceBeforeBlockStatements": true,
+
+    "requireParenthesesAroundIIFE": true,
+
+    "requireSpacesInConditionalExpression": true,
+
+    "requireBlocksOnNewline": true,
+
+    "requireCommaBeforeLineBreak": true,
+
+    "requireSpaceBeforeBinaryOperators": true,
+
+    "requireSpaceAfterBinaryOperators": true,
+
+    "requireLineFeedAtFileEnd": true,
+
+    "requireCapitalizedConstructors": true,
+
+    "requireSpacesInForStatement": true,
+
+    "requireSpaceBetweenArguments": true,
+
+    "requireCurlyBraces": [
+        "if",
+        "else",
+        "for",
+        "while",
+        "do",
+        "try",
+        "catch",
+        "case",
+        "default"
+    ],
+
+    "requireSpaceAfterKeywords": [
+        "do",
+        "for",
+        "if",
+        "else",
+        "switch",
+        "case",
+        "try",
+        "catch",
+        "void",
+        "while",
+        "with",
+        "return",
+        "typeof"
+    ],
+
+    "requirePaddingNewLinesBeforeLineComments": {
+        "allExcept": "firstAfterCurly"
+    },
+
+    "requirePaddingNewLinesAfterBlocks": true,
+
+    "requireSemicolons": true,
+
+    "safeContextKeyword": "self",
+
+    "validateLineBreaks": "LF",
+
+    "validateQuoteMarks": "\"",
+
+    "validateIndentation": 4
+}
+
