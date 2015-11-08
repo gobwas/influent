@@ -1,3 +1,4 @@
+//[ if BUILD_TARGET == "node" ]
 var cuculus = require("cuculus");
 var sinon = require("sinon");
 var chai = require("chai");
@@ -86,3 +87,4 @@ describe("NodeUdp", function() {
     });
 
 });
+//[ endif ]

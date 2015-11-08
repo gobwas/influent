@@ -59,7 +59,7 @@ describe("HttpClient", function() {
 
     describe("methods", function() {
         var instance, host, serializer, http,
-            precision;
+            precision, elector;
 
         beforeEach(function() {
             serializer = Object.create(Serializer.prototype);

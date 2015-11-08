@@ -58,6 +58,7 @@ describe("System tests", function() {
             });
     });
 
+    //[ if BUILD_TARGET == "node" ]
     it("should work with udp", function() {
         return Promise
             .all([
@@ -98,6 +99,7 @@ describe("System tests", function() {
                     });
             });
     });
+    //[ endif ]
 
     it("should fail when unauthorized", function() {
         return influent

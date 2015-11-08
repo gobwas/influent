@@ -3,7 +3,6 @@ var Client = require("../../../lib/client/client").Client;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Value = require("../../../lib/value").Value;
 var type = require("../../../lib/type");
-var influent = require("../../../index");
 var chai = require("chai");
 var chaiAsPromised = require("chai-as-promised");
 var sinon  = require("sinon");
@@ -201,7 +200,7 @@ describe("DecoratorClient", function() {
                 fields: {
                     some_field: {
                         data: 10,
-                        type: influent.type.INT64
+                        type: type.INT64
                     },
                     another_field: {
                         data: "str"

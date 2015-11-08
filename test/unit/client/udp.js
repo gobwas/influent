@@ -1,3 +1,4 @@
+//[ if BUILD_TARGET == "node" ]
 var UdpClient = require("../../../lib/client/udp").UdpClient;
 var Udp = require("../../../lib/net/udp/udp").Udp;
 var Host = require("../../../lib/client/host").Host;
@@ -22,10 +23,6 @@ describe("UdpClient", function() {
         options = {
             max_batch: (max_batch = chance.integer({ min: 2, max: 5 }))
         };
-    });
-
-    describe("constructor", function() {
-
     });
 
     describe("instance", function() {
@@ -125,3 +122,4 @@ describe("UdpClient", function() {
     });
 
 });
+//[ endif ]
