@@ -1,24 +1,28 @@
 var Client          = require("./lib/client/client").Client;
 var NetClient       = require("./lib/client/net").NetClient;
 var HttpClient      = require("./lib/client/http").HttpClient;
-var UdpClient       = require("./lib/client/udp").UdpClient;
 var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
 var Serializer      = require("./lib/serializer/serializer").Serializer;
 var LineSerializer  = require("./lib/serializer/line").LineSerializer;
 var Value           = require("./lib/value").Value;
 var Measurement     = require("./lib/measurement").Measurement;
 var Http            = require("hurl/lib/http").Http;
-var NodeHttp        = require("hurl/lib/node").NodeHttp;
 var XhrHttp         = require("hurl/lib/xhr").XhrHttp;
-var Udp             = require("./lib/net/udp/udp").Udp;
-var NodeUdp         = require("./lib/net/udp/node").NodeUdp;
 var Host            = require("./lib/client/host").Host;
 var Elector         = require("./lib/client/elector/elector").Elector;
 var BaseElector     = require("./lib/client/elector/base").BaseElector;
 var StubElector     = require("./lib/client/elector/stub").StubElector;
 var HttpPing        = require("./lib/client/elector/ping/http").HttpPing;
-var CmdPing         = require("./lib/client/elector/ping/cmd").CmdPing;
 var type            = require("./lib/type");
+
+//[ if BUILD_TARGET == "node" ]
+var UdpClient = require("./lib/client/udp").UdpClient;
+var NodeHttp  = require("hurl/lib/node").NodeHttp;
+var Udp       = require("./lib/net/udp/udp").Udp;
+var NodeUdp   = require("./lib/net/udp/node").NodeUdp;
+var CmdPing   = require("./lib/client/elector/ping/cmd").CmdPing;
+
+//[ endif ]
 
 var assert = require("assert");
 var _ = require("./lib/utils");
@@ -28,9 +32,7 @@ exports.Client         = Client;
 exports.NetClient      = NetClient;
 exports.HttpClient     = HttpClient;
 exports.Http           = Http;
-exports.NodeHttp       = NodeHttp;
 exports.XhrHttp        = XhrHttp;
-exports.UdpClient      = UdpClient;
 exports.Serializer     = Serializer;
 exports.LineSerializer = LineSerializer;
 exports.Value          = Value;
@@ -40,9 +42,15 @@ exports.Elector        = Elector;
 exports.BaseElector    = BaseElector;
 exports.StubElector    = StubElector;
 exports.HttpPing       = HttpPing;
-exports.CmdPing        = CmdPing;
-exports.Udp            = Udp;
-exports.NodeUdp        = NodeUdp;
+
+//[ if BUILD_TARGET == "node" ]
+exports.UdpClient = UdpClient;
+exports.NodeHttp  = NodeHttp;
+exports.Udp       = Udp;
+exports.NodeUdp   = NodeUdp;
+exports.CmdPing   = CmdPing;
+
+//[ endif ]
 
 function createHost(def) {
     return new Host(def.protocol, def.host, def.port);
@@ -78,6 +86,7 @@ function wrapClient(client) {
         });
 }
 
+//[ if BUILD_TARGET == "node" ]
 exports.createUdpClient = function(config) {
     var hosts, server, client, elector,
         election, pingOpt, electorConfig, pingConfig;
@@ -117,6 +126,8 @@ exports.createUdpClient = function(config) {
     return wrapClient(client);
 };
 
+//[ endif ]
+
 exports.createHttpClient = function(config) {
     var hosts, client, elector,
         election, pingOpt, ping, electorConfig, pingConfig;
@@ -131,8 +142,19 @@ exports.createHttpClient = function(config) {
     // use line serializer
     client.injectSerializer(new LineSerializer());
 
+    //[ if BUILD_TARGET == "node" ]
+
     // use http lib
     client.injectHttp(new NodeHttp());
+
+    //[ endif ]
+
+    //[ if BUILD_TARGET == "browser" ]
+    //[ js ]
+    /// use http lib
+    // client.injectHttp(new XhrHttp());
+    //[ endjs ]
+    //[ endif ]
 
     // use base election strategy
     // with http ping option
@@ -147,7 +169,18 @@ exports.createHttpClient = function(config) {
     }
 
     ping = new HttpPing(pingConfig);
+
+    //[ if BUILD_TARGET == "node" ]
+
     ping.injectHttp(new NodeHttp());
+
+    //[ endif ]
+
+    //[ if BUILD_TARGET == "browser" ]
+    //[ js ]
+    // ping.injectHttp(new XhrHttp());
+    //[ endjs ]
+    //[ endif ]
 
     elector = new BaseElector(hosts, electorConfig);
     elector.injectPing(ping);
