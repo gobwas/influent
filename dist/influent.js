@@ -20,7 +20,6 @@ function Client(options) {
     this.options = _.extend({}, this.constructor.DEFAULTS, options);
 }
 
-
 Client.prototype = {
     constructor: Client,
 
@@ -43,7 +42,7 @@ Client.prototype = {
      */
     write: function(measurements) {
         throw new TypeError("Method 'writeOne' must be implemented");
-    }
+    },
 };
 
 Client.DEFAULTS = {};
@@ -54,7 +53,7 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"../utils":21,"assert":"assert","inherits-js":35}],2:[function(require,module,exports){
+},{"../utils":17,"assert":"assert","inherits-js":31}],2:[function(require,module,exports){
 var Client = require("./client").Client;
 var assert = require("assert");
 var Measurement = require("../measurement").Measurement;
@@ -157,18 +156,19 @@ DecoratorClient = Client.extend(
 
         write: function(measurements, options) {
             assert(_.isArray(measurements) || _.isObject(measurements), "Array is expected");
-            
+
             if (_.isObject(measurements)) {
                 measurements = [measurements];
             }
-            
+
             return this.client.write(measurements.map(tryCastMeasurement), options);
         }
     }
 );
 
 exports.DecoratorClient = DecoratorClient;
-},{"../measurement":14,"../type":20,"../utils":21,"../value":22,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
+
+},{"../measurement":12,"../type":16,"../utils":17,"../value":18,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 var Ping = require("./ping/ping").Ping;
 var _ = require("../../utils");
@@ -180,62 +180,63 @@ var BaseElector;
  * @extends Elector
  */
 BaseElector = Elector.extend(
-	/**
-	 * @lends BaseElector.prototype
-	 */
-	{
-		constructor: function() {
-			Elector.prototype.constructor.apply(this, arguments);
-			this.isPending = false;
-			this.pending = Promise.resolve();
-		},
+    /**
+     * @lends BaseElector.prototype
+     */
+    {
+        constructor: function() {
+            Elector.prototype.constructor.apply(this, arguments);
+            this.isPending = false;
+            this.pending = Promise.resolve();
+        },
 
-		injectPing: function(ping) {
-			assert(ping instanceof Ping, "Ping is expected");
-			this.ping = ping;
-		},
+        injectPing: function(ping) {
+            assert(ping instanceof Ping, "Ping is expected");
+            this.ping = ping;
+        },
 
-		getHost: function() {
-			var self = this;
+        getHost: function() {
+            var self = this;
 
-	        // prevent long queue
-	        if (this.isPending) {
-	        	return this.pending;
-	        }
+            // prevent long queue
+            if (this.isPending) {
+                return this.pending;
+            }
 
-		    if (!this.activeHost || (this.lastHealthCheck + this.options.period) <= Date.now()) {
-		    	this.isPending = true;
+            if (!this.activeHost || (this.lastHealthCheck + this.options.period) <= Date.now()) {
+                this.isPending = true;
 
-		        this.pending = _.any(this.hosts.map(function(host) {
-		        	return self.ping.pong(host)
-		        		.then(function() {
-		        			return host;
-		        		});
-		        }));
+                this.pending = _.any(this.hosts.map(function(host) {
+                    return self.ping.pong(host)
+                        .then(function() {
+                            return host;
+                        });
+                }));
 
-		        return this.pending
-			        .then(function(host) {
-			        	self.lastHealthCheck = Date.now();
-			        	self.activeHost = host;
-			        	self.isPending = false;
+                return this.pending
+                    .then(function(host) {
+                        self.lastHealthCheck = Date.now();
+                        self.activeHost = host;
+                        self.isPending = false;
 
-			        	return host;
-			        });
-		    }
+                        return host;
+                    });
+            }
 
-		    return Promise.resolve(this.activeHost);
-		}
-	},
+            return Promise.resolve(this.activeHost);
+        }
+    },
 
-	{
-		DEFAULTS: _.extend({}, Elector.DEFAULTS, {
-			period: 30 * 60 * 1000 // 30 minutes
-		})
-	}
+    {
+        DEFAULTS: _.extend({}, Elector.DEFAULTS, {
+            period: 30 * 60 * 1000 // 30 minutes
+        })
+    }
 );
 
 exports.BaseElector = BaseElector;
-},{"../../utils":21,"./elector":4,"./ping/ping":7,"assert":"assert"}],4:[function(require,module,exports){
+
+},{"../../utils":17,"./elector":4,"./ping/ping":6,"assert":"assert"}],4:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../utils");
 var assert = require("assert");
@@ -243,78 +244,35 @@ var assert = require("assert");
 /**
  * @abstract
  */
-function Elector (hosts, options) {
-	this.options = _.extend({}, this.constructor.DEFAULTS, options);
-	this.hosts = hosts;
-	this.lastHealthCheck = -1;
-	this.activeHost = null;
+function Elector(hosts, options) {
+    this.options = _.extend({}, this.constructor.DEFAULTS, options);
+    this.hosts = hosts;
+    this.lastHealthCheck = -1;
+    this.activeHost = null;
 }
 
 Elector.prototype = {
-	constructor: Elector,
+    constructor: Elector,
 
-	/**
-	 * @abstract
-	 */
-	getHost: function(hosts) {
-		throw new TypeError("Method 'getHost' should be implemented");	
-	}
-}
+    /**
+     * @abstract
+     */
+    getHost: function(hosts) {
+        throw new TypeError("Method 'getHost' should be implemented");
+    }
+};
 
 Elector.DEFAULTS = {
-	period: 0
+    period: 0
 };
 
 Elector.extend = function(p, s) {
-	return inherits(this, p, s);
+    return inherits(this, p, s);
 };
 
 exports.Elector = Elector;
-},{"../../utils":21,"assert":"assert","inherits-js":35}],5:[function(require,module,exports){
-var Ping = require("./ping").Ping;
-var Host = require("../../host").Host;
-var _ = require("../../../utils");
-var assert = require("assert");
-var cmd = require("child_process");
 
-/**
- * @class CmdPing
- * @extends Ping
- */
-CmdPing = Ping.extend(
-	/**
-	 * @lends CmdPing.prototype
-	 */
-	 {
-	 	pong: function(host) {
-	 		var self = this;
-
-	 		assert(host instanceof Host, "Host is expected");
-	 		
-	 		return new Promise(function(resolve, reject) {
-	 			var command = "ping -c" + self.options.count + " -t" + self.options.timeout + " " + host.host;
-	 			
-	 			cmd.exec(command, function(err) {
-	 				if (err) {
-	 					return reject(err);
-	 				}
-
-	 				resolve();
-	 			});
-	 		});
-	 	}
-	 },
-
-	 {
-	 	DEFAULTS: _.extend({}, Ping.DEFAULTS, {
-	 		count:   1,
-	 		timeout: 3
-	 	})
-	 }
-);
-
-exports.CmdPing = CmdPing;
-},{"../../../utils":21,"../../host":9,"./ping":7,"assert":"assert","child_process":undefined}],6:[function(require,module,exports){
+},{"../../utils":17,"assert":"assert","inherits-js":31}],5:[function(require,module,exports){
 var Ping = require("./ping").Ping;
 var Host = require("../../host").Host;
 var _ = require("../../../utils");
@@ -327,39 +285,40 @@ var HttpPing;
  * @extends Ping
  */
 HttpPing = Ping.extend(
-	/**
-	 * @lends HttpPing.prototype
-	 */
-	{
-		injectHttp: function(http) {
+    /**
+     * @lends HttpPing.prototype
+     */
+    {
+        injectHttp: function(http) {
             assert(http instanceof Http, "Http is expected");
             this.http = http;
         },
 
-		pong: function(host) {
-			var config;
+        pong: function(host) {
+            var config;
 
-			assert(host instanceof Host, "Host is expected");
+            assert(host instanceof Host, "Host is expected");
 
-			// prepare config for the request
-			config = _.pick(this.options, ["timeout"]);
+            // prepare config for the request
+            config = _.pick(this.options, ["timeout"]);
 
-			return this.http.request(host.toString(), config)
-				.then(function() {
-					return;
-				});
-		}
-	},
+            return this.http.request(host.toString(), config)
+                .then(function() {
+                    return;
+                });
+        }
+    },
 
-	{
-		DEFAULTS: _.extend({}, Ping.DEFAULTS, {
-			timeout: 5
-		})
-	}
-)
+    {
+        DEFAULTS: _.extend({}, Ping.DEFAULTS, {
+            timeout: 5000
+        })
+    }
+);
 
 exports.HttpPing = HttpPing;
-},{"../../../utils":21,"../../host":9,"./ping":7,"assert":"assert","hurl/lib/http":29}],7:[function(require,module,exports){
+
+},{"../../../utils":17,"../../host":8,"./ping":6,"assert":"assert","hurl/lib/http":25}],6:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../../utils");
 var assert = require("assert");
@@ -377,17 +336,18 @@ function Ping(options) {
  * @returns Promise
  */
 Ping.prototype.pong = function(host) {
-	throw new TypeError("Method 'pong' should be implemented");
-}
+    throw new TypeError("Method 'pong' should be implemented");
+};
 
 Ping.extend = function(p, s) {
-	return inherits(this, p, s);
-}
+    return inherits(this, p, s);
+};
 
 Ping.DEFAULTS = {};
 
 exports.Ping = Ping;
-},{"../../../utils":21,"assert":"assert","inherits-js":35}],8:[function(require,module,exports){
+
+},{"../../../utils":17,"assert":"assert","inherits-js":31}],7:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 var Host = require("../host").Host;
 var StubElector;
@@ -397,20 +357,21 @@ var StubElector;
  * @extends Elector
  */
 StubElector = Elector.extend(
-	/**
-	 * @lends StubElector.prototype
-	 */
-	{
-		getHost: function(hosts) {
-			var host = hosts[0];
-			assert(host instanceof Host, "Host is expected");
-			return Promise.resolve(host);
-		}
-	}
+    /**
+     * @lends StubElector.prototype
+     */
+    {
+        getHost: function(hosts) {
+            var host = hosts[0];
+            assert(host instanceof Host, "Host is expected");
+            return Promise.resolve(host);
+        }
+    }
 );
 
 exports.StubElector = StubElector;
-},{"../host":9,"./elector":4}],9:[function(require,module,exports){
+
+},{"../host":8,"./elector":4}],8:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./../utils");
 
@@ -438,7 +399,8 @@ Host.prototype = {
 };
 
 exports.Host = Host;
-},{"./../utils":21,"assert":"assert"}],10:[function(require,module,exports){
+
+},{"./../utils":17,"assert":"assert"}],9:[function(require,module,exports){
 var NetClient = require("./net").NetClient;
 var Info = require("./info").Info;
 var Measurement = require("../measurement").Measurement;
@@ -478,7 +440,7 @@ HttpClient = NetClient.extend(
             if (!_.isUndefined(options.chunk_size)) {
                 assert(_.isNumber(options.chunk_size), "options.chunk_size is expected to be a number");
             }
-            
+
             precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
             precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
         },
@@ -513,6 +475,7 @@ HttpClient = NetClient.extend(
             if (!_.isUndefined(options.chunk_size)) {
                 assert(_.isNumber(options.chunk_size),  "options.chunk_size is expected to be a number");
             }
+
             precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
             options = _.extend({}, this.options, _.pick(options, "epoch", "chunk_size"));
 
@@ -573,7 +536,7 @@ HttpClient = NetClient.extend(
 
             // allow to overwrite base precision
             precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
-            
+
             // extend call options with base
             options = _.extend({}, this.options, _.pick(options, "precision", "max_batch"));
 
@@ -588,7 +551,7 @@ HttpClient = NetClient.extend(
                             }))
                             .then(function(lines) {
                                 return self._writeData(lines.join("\n"), options);
-                            })
+                            });
                     })
             );
         },
@@ -616,9 +579,9 @@ HttpClient = NetClient.extend(
                     // try to retrieve server date
                     date = resp.headers["date"];
                     if (date) {
-                        info.setDate(new Date(date));    
+                        info.setDate(new Date(date));
                     }
-                    
+
                     return info;
                 });
         },
@@ -654,7 +617,7 @@ HttpClient = NetClient.extend(
 
                                 switch (resp.statusCode) {
                                     case 200: {
-                                        return reject(new Error("InfluxDB could not complete request: " + resp.body.toString()))
+                                        return reject(new Error("InfluxDB could not complete request: " + resp.body.toString()));
                                     }
 
                                     case 401: {
@@ -677,10 +640,10 @@ HttpClient = NetClient.extend(
 
     {
         DEFAULTS: _.extend({}, NetClient.DEFAULTS, {
-            username:   null,
-            password:   null,
-            database:   null,
-            
+            username: null,
+            password: null,
+            database: null,
+
             max_batch:  5000,
             chunk_size: null,
             precision:  null,
@@ -690,7 +653,8 @@ HttpClient = NetClient.extend(
 );
 
 exports.HttpClient = HttpClient;
-},{"../measurement":14,"../precision":17,"../utils":21,"./host":9,"./info":11,"./net":12,"assert":"assert","hurl/lib/http":29}],11:[function(require,module,exports){
+
+},{"../measurement":12,"../precision":13,"../utils":17,"./host":8,"./info":10,"./net":11,"assert":"assert","hurl/lib/http":25}],10:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("../utils");
 
@@ -710,7 +674,8 @@ Info.prototype.setDate = function(date) {
 };
 
 exports.Info = Info;
-},{"../utils":21,"assert":"assert"}],12:[function(require,module,exports){
+
+},{"../utils":17,"assert":"assert"}],11:[function(require,module,exports){
 var Client = require("./client").Client;
 var Host = require("./host").Host;
 var Elector = require("./elector/elector").Elector;
@@ -723,7 +688,7 @@ var assert = require("assert");
  * @extends Client
  */
 NetClient = Client.extend(
-	/**
+    /**
      * @lends NetClient.prototype
      */
     {
@@ -732,142 +697,24 @@ NetClient = Client.extend(
             this.hosts = [];
         },
 
-    	injectSerializer: function(serializer) {
+        injectSerializer: function(serializer) {
             assert(serializer instanceof Serializer, "Serializer is expected");
             this.serializer = serializer;
         },
 
         injectElector: function(elector) {
-        	assert(elector instanceof Elector, "Elector is expected");
-        	this.elector = elector;
+            assert(elector instanceof Elector, "Elector is expected");
+            this.elector = elector;
         }
     }
 );
 
 exports.NetClient = NetClient;
-},{"../serializer/serializer":19,"../utils":21,"./client":1,"./elector/elector":4,"./host":9,"assert":"assert"}],13:[function(require,module,exports){
-(function (Buffer){
-var NetClient = require("./net").NetClient;
-var Host = require("./host").Host;
-var Info = require("./info").Info;
-var assert = require("assert");
-var Udp = require("../net/udp/udp").Udp;
-var _ = require("../utils");
-var UdpClient;
 
-/**
- * @class UdpClient
- * @extends NetClient
- */
-UdpClient = NetClient.extend(
-    /**
-     * @lends HttpClient.prototype
-     */
-    {
-        constructor: function(options) {
-            NetClient.prototype.constructor.apply(this, arguments);
-
-            if (!_.isUndefined(options.max_batch)) {
-                assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
-            }
-            
-            if (!_.isUndefined(options.safe_limit)) {
-                assert(_.isNumber(options.safe_limit), "options.safe_limit is expected to be a number");
-            }
-        },
-
-        injectUdp: function(udp) {
-            assert(udp instanceof Udp, "Udp is expected");
-            this.udp = udp;
-        },
-
-        ping: function() {
-            var self = this;
-
-            return this.elector.getHost()
-                .then(function(host) {
-                    return {
-                        info: new Info(),
-                        host: host
-                    };
-                });
-        },
-
-        query: function(query) {
-            return Promise.reject('Query is not allowed in udp client');
-        },
-
-        write: function(measurements, options) {
-            var self = this;
-            var config = _.extend({}, this.options);
-
-            options = options || {};          
-        
-            // allow to overwrite base max_batch
-            if (!_.isUndefined(options.max_batch)) {
-                assert(_.isNumber(options.max_batch) && options.max_batch > 0,  "options.max_batch is expected to be a number > 0");
-                config.max_batch = options.max_batch;
-            }
-
-            // allow to overwrite base safe_limit
-            if (!_.isUndefined(options.safe_limit)) {
-                assert(_.isNumber(options.safe_limit) && options.safe_limit > 0,  "options.safe_limit is expected to be a number > 0");
-                config.safe_limit = options.safe_limit;
-            }
-
-            return Promise.all(
-                _
-                    .chunks(measurements, config.max_batch)
-                    .map(function(measurements) {
-                        return Promise
-                            .all(measurements.map(function(measurement) {
-                                return self.serializer.serialize(measurement);
-                            }))
-                            .then(function(lines) {
-                                var buffers = [];
-                                buffers.push(lines.reduce(function(buf, line) {
-                                    var str = "\n" + line;
-
-                                    if (!buf) {
-                                        return new Buffer(line);
-                                    }
-
-                                    if ((buf.length + Buffer.byteLength(str)) > config.safe_limit) {
-                                        buffers.push(buf);
-                                        return new Buffer(line);
-                                    }
-
-                                    return Buffer.concat([buf, new Buffer(str)]);
-                                }, null));
-
-                                return Promise.all(buffers.map(function(buf) {
-                                    return self.elector
-                                        .getHost()
-                                        .then(function(host) {
-                                            return self.udp.send(host.host, host.port, buf, 0, buf.length);
-                                        });
-                                }));
-                            });
-                    })
-            );
-        }
-    },
-
-    {
-        DEFAULTS: _.extend({}, NetClient.DEFAULTS, {
-            max_batch:  1000,
-            safe_limit: 512, // bytes
-        })
-    }
-);
-
-module.exports.UdpClient = UdpClient;
-}).call(this,require("buffer").Buffer)
-},{"../net/udp/udp":16,"../utils":21,"./host":9,"./info":11,"./net":12,"assert":"assert","buffer":undefined}],14:[function(require,module,exports){
+},{"../serializer/serializer":15,"../utils":17,"./client":1,"./elector/elector":4,"./host":8,"assert":"assert"}],12:[function(require,module,exports){
 var Value  = require("./value").Value;
 var assert = require("assert");
 var _      = require("./utils");
-
 
 /**
  * @class Measurement
@@ -915,86 +762,9 @@ Measurement.prototype = {
     }
 };
 
-
 exports.Measurement = Measurement;
-},{"./utils":21,"./value":22,"assert":"assert"}],15:[function(require,module,exports){
-var Udp = require("./udp").Udp;
-var assert = require("assert");
-var _ = require("../../utils");
-var dgram = require("dgram");
-var dns = require("dns");
 
-/**
- * @class NodeUdp
- * @extends Udp
- */
-NodeUdp = Udp.extend(
-    /**
-     * @lends NodeUdp.prototype
-     */
-    {
-    	send: function(host, port, buf, offset, length) {
-            assert(_.isString(host), "Host is expected to be a string");
-
-            return this._lookup(host)
-                .then(function(def) {
-                    return new Promise(function(resolve) {
-                        var socket = dgram.createSocket(def.family == 4 ? "udp4" : "udp6");
-                        socket.send(buf, offset, length, port, def.address, resolve);
-                    });
-                });
-    	},
-
-        _lookup: function(host) {
-            return new Promise(function(resolve, reject) {
-                dns.lookup(host, function(err, address, family) {
-                    if (err) {
-                        return reject(err);
-                    }
-
-                    resolve({
-                        address: address,
-                        family:  family
-                    });
-                });
-            });
-        }
-    }
-);
-
-exports.NodeUdp = NodeUdp;
-},{"../../utils":21,"./udp":16,"assert":"assert","dgram":undefined,"dns":undefined}],16:[function(require,module,exports){
-var inherits = require("inherits-js");
-var _ = require("../../utils");
-var assert = require("assert");
-
-/**
- * @abstract
- */
-function Udp(options) {
-    this.options = _.extend({}, this.constructor.DEFAULTS, options);
-}
-
-Udp.prototype = {
-    constructor: Udp,
-
-    /**
-     * @abstract
-     */
-    send: function(address, port, buf, offset, length) {
-        throw new TypeError("Method 'send' must be implemented");
-    }
-};
-
-Udp.DEFAULTS = {};
-
-Udp.extend = function(p, s) {
-    return inherits(this, p, s);
-};
-
-exports.Udp = Udp;
-
-},{"../../utils":21,"assert":"assert","inherits-js":35}],17:[function(require,module,exports){
+},{"./utils":17,"./value":18,"assert":"assert"}],13:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
@@ -1035,7 +805,8 @@ exports.assert = function(precision, nullable, msg) {
     var values = _.values(MAP);
     assert((nullable ? precision == null : false) || values.indexOf(precision) != -1, msg.replace("%values%", values.join(",")));
 };
-},{"./utils":21,"assert":"assert"}],18:[function(require,module,exports){
+
+},{"./utils":17,"assert":"assert"}],14:[function(require,module,exports){
 var Serializer      = require("./serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var STRING      = require("../type").STRING;
@@ -1057,7 +828,7 @@ escape = (function() {
         return str
             .replace(spaceReg, "\\ ")
             .replace(commaReg, "\\,");
-    }
+    };
 })();
 
 asString = (function() {
@@ -1068,10 +839,10 @@ asString = (function() {
 
         assert(_.isString(str), "String is expected");
 
-        result = str.replace(quotesReg, '\\"');
+        result = str.replace(quotesReg, "\\\"");
 
-        return '"' + result + '"';
-    }
+        return "\"" + result + "\"";
+    };
 })();
 
 asBoolean = function(obj) {
@@ -1098,7 +869,6 @@ asFloat = function(obj) {
     return obj.toString();
 };
 
-
 function sortAndEach(obj, iterator) {
     // as spec says, sort should be compatible with Go's func Compare
     // Compare returns an integer comparing two byte slices lexicographically.
@@ -1122,7 +892,6 @@ function sortAndEach(obj, iterator) {
         });
 }
 
-
 /**
  * @class LineSerializer
  * @extends Serializer
@@ -1141,7 +910,7 @@ LineSerializer = Serializer.extend(
                 line = escape(measurement.key);
 
                 sortAndEach(measurement.tags, function(value, tag) {
-                    line+= "," + escape(tag) + "=" + escape(value);
+                    line += "," + escape(tag) + "=" + escape(value);
                 });
 
                 sortAndEach(measurement.fields, (function() {
@@ -1162,14 +931,17 @@ LineSerializer = Serializer.extend(
                                 strValue = asString(value.data);
                                 break;
                             }
+
                             case BOOLEAN: {
                                 strValue = asBoolean(value.data);
                                 break;
                             }
+
                             case INT64: {
                                 strValue = asInteger(value.data);
                                 break;
                             }
+
                             case FLOAT64: {
                                 strValue = asFloat(value.data);
                                 break;
@@ -1180,12 +952,12 @@ LineSerializer = Serializer.extend(
                             }
                         }
 
-                        line+= glue + escape(field) + "=" + strValue;
-                    }
+                        line += glue + escape(field) + "=" + strValue;
+                    };
                 })());
 
                 if (timestamp = measurement.timestamp) {
-                    line+= " " + timestamp;
+                    line += " " + timestamp;
                 }
 
                 resolve(line);
@@ -1195,7 +967,8 @@ LineSerializer = Serializer.extend(
 );
 
 exports.LineSerializer = LineSerializer;
-},{"../measurement":14,"../type":20,"../utils":21,"./serializer":19,"assert":"assert"}],19:[function(require,module,exports){
+
+},{"../measurement":12,"../type":16,"../utils":17,"./serializer":15,"assert":"assert"}],15:[function(require,module,exports){
 var inherits = require("inherits-js");
 
 /**
@@ -1221,7 +994,8 @@ Serializer.extend = function(p, s) {
 };
 
 exports.Serializer = Serializer;
-},{"inherits-js":35}],20:[function(require,module,exports){
+
+},{"inherits-js":31}],16:[function(require,module,exports){
 var _ = require("./utils");
 
 var STRING  = 0;
@@ -1229,7 +1003,12 @@ var FLOAT64 = 1;
 var INT64   = 2;
 var BOOLEAN = 3;
 
-var TYPE = [ STRING, FLOAT64, INT64, BOOLEAN ];
+var TYPE = [
+    STRING,
+    FLOAT64,
+    INT64,
+    BOOLEAN
+];
 
 //var MAP = {};
 //MAP[STRING]  = "string";
@@ -1264,17 +1043,18 @@ exports.FLOAT64 = FLOAT64;
 exports.INT64 = INT64;
 exports.BOOLEAN = BOOLEAN;
 exports.TYPE = TYPE;
-},{"./utils":21}],21:[function(require,module,exports){
+
+},{"./utils":17}],17:[function(require,module,exports){
 var assert = require("assert");
 
-exports.noop = function(){};
+exports.noop = function() {};
 
 exports.getTypeOf = (function() {
     var typeReg = /\[object ([A-Z][a-z]+)\]/;
 
     return function(obj) {
         return Object.prototype.toString.call(obj).replace(typeReg, "$1");
-    }
+    };
 })();
 
 exports.forEachIn = function(obj, iterator) {
@@ -1374,7 +1154,7 @@ exports.isNumericString = (function() {
     var reg = /^\d*$/;
     return function(obj) {
         return exports.isString(obj) && reg.test(obj);
-    }
+    };
 })();
 
 exports.flatten = function(list) {
@@ -1433,7 +1213,7 @@ exports.any = function(promises) {
 };
 
 
-},{"assert":"assert"}],22:[function(require,module,exports){
+},{"assert":"assert"}],18:[function(require,module,exports){
 var TYPE   = require("./type").TYPE;
 var assert = require("assert");
 
@@ -1446,13 +1226,15 @@ var assert = require("assert");
  * @param {number} [type]
  */
 function Value(data, type) {
-	assert(TYPE.indexOf(type) != -1, "Type is unknown");
+    assert(TYPE.indexOf(type) != -1, "Type is unknown");
+
     this.data = data;
     this.type = type;
 }
 
 exports.Value = Value;
-},{"./type":20,"assert":"assert"}],23:[function(require,module,exports){
+
+},{"./type":16,"assert":"assert"}],19:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1477,14 +1259,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],24:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],25:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2074,7 +1856,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":24,"_process":26,"inherits":23}],26:[function(require,module,exports){
+},{"./support/isBuffer":20,"_process":22,"inherits":19}],22:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2167,7 +1949,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],27:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var inherits = require("inherits-js");
 var HttpError;
 
@@ -2204,7 +1986,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":35}],28:[function(require,module,exports){
+},{"inherits-js":31}],24:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -2225,7 +2007,7 @@ TimeoutHttpError = HttpError.extend(
 
 exports.TimeoutHttpError = TimeoutHttpError;
 
-},{"../error":27}],29:[function(require,module,exports){
+},{"../error":23}],25:[function(require,module,exports){
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
@@ -2329,7 +2111,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":30,"assert":"assert","debug":32,"events":"events","inherits-js":35}],30:[function(require,module,exports){
+},{"./utils":26,"assert":"assert","debug":28,"events":"events","inherits-js":31}],26:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -2399,7 +2181,7 @@ exports.uniqueId = function(key) {
     return ++counter;
 };
 
-},{}],31:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var Http      = require("./http").Http,
     _         = require("./utils"),
     HttpError = require("./error").HttpError,
@@ -2597,7 +2379,7 @@ XhrHttp = Http.extend(
 
 exports.XhrHttp = XhrHttp;
 
-},{"./error":27,"./error/timeout":28,"./http":29,"./utils":30,"querystring":"querystring"}],32:[function(require,module,exports){
+},{"./error":23,"./error/timeout":24,"./http":25,"./utils":26,"querystring":"querystring"}],28:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -2767,7 +2549,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":33}],33:[function(require,module,exports){
+},{"./debug":29}],29:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -2966,7 +2748,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":34}],34:[function(require,module,exports){
+},{"ms":30}],30:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -3093,7 +2875,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],35:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -3134,7 +2916,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":37}],36:[function(require,module,exports){
+},{"./utils/extend":33}],32:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -3161,7 +2943,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],37:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -3184,7 +2966,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":36}],38:[function(require,module,exports){
+},{"./each":32}],34:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3266,7 +3048,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],39:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3693,7 +3475,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":25}],"events":[function(require,module,exports){
+},{"util/":21}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4000,33 +3782,31 @@ function isUndefined(arg) {
 var Client          = require("./lib/client/client").Client;
 var NetClient       = require("./lib/client/net").NetClient;
 var HttpClient      = require("./lib/client/http").HttpClient;
-var UdpClient       = require("./lib/client/udp").UdpClient;
 var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
 var Serializer      = require("./lib/serializer/serializer").Serializer;
 var LineSerializer  = require("./lib/serializer/line").LineSerializer;
 var Value           = require("./lib/value").Value;
 var Measurement     = require("./lib/measurement").Measurement;
-var NodeHttp        = require("hurl/lib/xhr").XhrHttp;
 var Http            = require("hurl/lib/http").Http;
-var Udp             = require("./lib/net/udp/udp").Udp;
-var NodeUdp         = require("./lib/net/udp/node").NodeUdp;
+var XhrHttp         = require("hurl/lib/xhr").XhrHttp;
 var Host            = require("./lib/client/host").Host;
 var Elector         = require("./lib/client/elector/elector").Elector;
 var BaseElector     = require("./lib/client/elector/base").BaseElector;
 var StubElector     = require("./lib/client/elector/stub").StubElector;
 var HttpPing        = require("./lib/client/elector/ping/http").HttpPing;
-var CmdPing         = require("./lib/client/elector/ping/cmd").CmdPing;
 var type            = require("./lib/type");
+
+
 
 var assert = require("assert");
 var _ = require("./lib/utils");
 
+exports.type           = type;
 exports.Client         = Client;
 exports.NetClient      = NetClient;
 exports.HttpClient     = HttpClient;
 exports.Http           = Http;
-exports.NodeHttp       = NodeHttp;
-exports.UdpClient      = UdpClient;
+exports.XhrHttp        = XhrHttp;
 exports.Serializer     = Serializer;
 exports.LineSerializer = LineSerializer;
 exports.Value          = Value;
@@ -4036,10 +3816,7 @@ exports.Elector        = Elector;
 exports.BaseElector    = BaseElector;
 exports.StubElector    = StubElector;
 exports.HttpPing       = HttpPing;
-exports.CmdPing        = CmdPing;
-exports.type           = type;
-exports.Udp            = Udp;
-exports.NodeUdp        = NodeUdp;
+
 
 
 function createHost(def) {
@@ -4051,7 +3828,7 @@ function resolveHosts(config) {
 
     server = config.server;
     if (_.isObject(server)) {
-        hosts = [ createHost(server) ];
+        hosts = [createHost(server)];
     } else if (_.isArray(server)) {
         hosts = server.map(createHost);
     } else {
@@ -4076,44 +3853,7 @@ function wrapClient(client) {
         });
 }
 
-exports.createUdpClient = function(config) {
-    var hosts, server, client, elector,
-        election, pingOpt, electorConfig, pingConfig;
 
-    assert(_.isObject(config), "Object is expected for config");
-
-    // prepare hosts
-    hosts = resolveHosts(config);
-
-    // create raw client
-    client = new UdpClient(_.pick(config, Object.keys(UdpClient.DEFAULTS)));
-
-    // use line serializer
-    client.injectSerializer(new LineSerializer());
-
-    // use udp lib
-    client.injectUdp(new NodeUdp());
-
-    // use base election strategy
-    // with http ping option
-    election = config.election;
-    if (_.isObject(election)) {
-        electorConfig = _.pick(election, Object.keys(BaseElector.DEFAULTS));
-
-        pingOpt = election.ping;
-        if (_.isObject(pingOpt)) {
-            pingConfig = _.pick(pingOpt, Object.keys(CmdPing.DEFAULTS));
-        }
-    }
-
-    elector = new BaseElector(hosts, electorConfig);
-    elector.injectPing(new CmdPing(pingConfig));
-
-    // use elector
-    client.injectElector(elector);
-
-    return wrapClient(client);
-};
 
 exports.createHttpClient = function(config) {
     var hosts, client, elector,
@@ -4129,8 +3869,14 @@ exports.createHttpClient = function(config) {
     // use line serializer
     client.injectSerializer(new LineSerializer());
 
-    // use http lib
-    client.injectHttp(new NodeHttp());
+    
+
+    
+    
+    //use http lib
+    client.injectHttp(new XhrHttp());
+    
+    
 
     // use base election strategy
     // with http ping option
@@ -4145,23 +3891,30 @@ exports.createHttpClient = function(config) {
     }
 
     ping = new HttpPing(pingConfig);
-    ping.injectHttp(new NodeHttp());
+
     
+
+    
+    
+    ping.injectHttp(new XhrHttp());
+    
+    
+
     elector = new BaseElector(hosts, electorConfig);
     elector.injectPing(ping);
-    
+
     client.injectElector(elector);
 
     return wrapClient(client);
 };
 
-},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/cmd":5,"./lib/client/elector/ping/http":6,"./lib/client/elector/stub":8,"./lib/client/host":9,"./lib/client/http":10,"./lib/client/net":12,"./lib/client/udp":13,"./lib/measurement":14,"./lib/net/udp/node":15,"./lib/net/udp/udp":16,"./lib/serializer/line":18,"./lib/serializer/serializer":19,"./lib/type":20,"./lib/utils":21,"./lib/value":22,"assert":"assert","hurl/lib/http":29,"hurl/lib/xhr":31}],"querystring":[function(require,module,exports){
+},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/stub":7,"./lib/client/host":8,"./lib/client/http":9,"./lib/client/net":11,"./lib/measurement":12,"./lib/serializer/line":14,"./lib/serializer/serializer":15,"./lib/type":16,"./lib/utils":17,"./lib/value":18,"assert":"assert","hurl/lib/http":25,"hurl/lib/xhr":27}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":38,"./encode":39}]},{},[]);
+},{"./decode":34,"./encode":35}]},{},[]);
 
 return require("influent");
 }));
