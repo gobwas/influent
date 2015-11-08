@@ -1,10 +1,16 @@
 var gulp = require("gulp");
+var inherits = require("inherits-js");
+var stream = require("stream");
 
 gulp.task('test', function (done) {
     var istanbul = require("gulp-istanbul");
     var mocha = require("gulp-mocha");
+    var jscs = require("gulp-jscs");
 
     gulp.src(['./lib/**/*.js'])
+        .pipe(jscs())
+        .pipe(jscs.reporter())
+        .pipe(jscs.reporter('fail'))
         .pipe(istanbul())
         .pipe(istanbul.hookRequire())
         .on('finish', function () {
@@ -29,7 +35,6 @@ gulp.task("ci", function(done) {
 
     runSequence(
         "test",
-        "webtest",
         "karma:ci",
         done
     );
@@ -41,27 +46,47 @@ gulp.task("webtest", ["browser"], function() {
     var source = require("vinyl-source-stream");
     var buffer = require("vinyl-buffer");
     var replace = require("gulp-replace");
-    var File = require("vinyl");
     var polyfiller = require("gulp-autopolyfiller");
+    var fs = require("fs");
+    var nunjucksify = require("./build/transform/nunjucks").factory;
 
-    return new Promise(function(resolve, reject) {
-        glob("./test/+(unit|system)/**/*.js", function(err, files) {
-            if (err) {
-                reject(err);
-                return
-            }
+    return Promise.all([
+        new Promise(function(resolve, reject) {
+            glob("./test/+(unit|system)/**/*.js", function(err, files) {
+                if (err) {
+                    reject(err);
+                    return
+                }
 
-            resolve(files);
-        });
-    })
-    .then(function(files) {
+                resolve(files);
+            });
+        }),
+        new Promise(function(resolve, reject) {
+            var indexStubPath = "/tmp/influent.js";
+
+            // stick to window.influent
+            fs.writeFile(indexStubPath, new Buffer("module.exports = influent;"), function(err) {
+                if (err) {
+                    return reject(err);
+                }
+
+                resolve(indexStubPath);
+            });
+        })
+    ])
+    .then(function(list) {
+        var files = list[0];
+        var stub = list[1];
         var bundler = new Browserify();
 
-        file = new File({
-            // stick to window.influent
-            contents: new Buffer("module.exports = influent;")
+        // use conditional builds templating
+        bundler.transform(nunjucksify, {
+            data: {
+                BUILD_TARGET: "browser"
+            }
         });
-        bundler.require(file, { expose: "../../index.js" });
+
+        bundler.require(stub, { expose: "../../index.js" });
 
         files.forEach(function(file) {
             bundler.add(file);
@@ -88,11 +113,11 @@ function karma(name, cb) {
     karma.start();
 }
 
-gulp.task("karma:local", function(done) {
+gulp.task("karma:local", ["webtest"], function(done) {
     karma(__dirname + '/.karma.local.js', done)
 });
 
-gulp.task("karma:ci", function(done) {
+gulp.task("karma:ci", ["webtest"], function(done) {
     karma(__dirname + '/.karma.ci.js', done)
 });
 
@@ -100,13 +125,13 @@ gulp.task("browser", function() {
     var source = require("vinyl-source-stream");
     var buffer = require("vinyl-buffer");
     var Browserify = require("browserify");
-    var bReplace = require("browserify-replace");
     var replace = require("gulp-replace");
     var rename = require("gulp-rename");
     var uglify = require("gulp-uglify");
     var literalify = require("literalify");
     var umd = require("gulp-umd");
     var path = require("path");
+    var nunjucksify = require("./build/transform/nunjucks").factory;
     var bundler;
 
     bundler = new Browserify({
@@ -115,17 +140,17 @@ gulp.task("browser", function() {
         ]
     });
 
+    // use conditional builds templating
+    bundler.transform(nunjucksify, {
+        data: {
+            BUILD_TARGET: "browser"
+        }
+    });
+
     bundler.require("./index.js", { expose: "influent" });
     bundler.require("./node_modules/assert/assert.js", { expose: "assert" });
     bundler.require("./node_modules/events/events.js", { expose: "events" });
     bundler.require("./node_modules/querystring/index.js", { expose: "querystring" });
-
-    bundler.transform(bReplace, { replace: [
-        {
-            from: /require\("hurl\/lib\/node"\)\.NodeHttp/g,
-            to: 'require("hurl/lib/xhr").XhrHttp'
-        }
-    ]});
 
     bundler.bundle()
         .pipe(source("influent.js"))
