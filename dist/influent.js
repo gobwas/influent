@@ -116,7 +116,7 @@ function tryCastMeasurement(def) {
         });
     }
 
-    timestamp = def.timestamp;
+    timestamp = def.time;
     if (!_.isUndefined(timestamp)) {
         if (_.isString(timestamp)) {
             measurement.setTimestamp(timestamp);
@@ -730,7 +730,7 @@ function Measurement(key) {
 
     this.tags = {};
     this.fields = {};
-    this.timestamp = null;
+    this.time = null;
 }
 
 Measurement.prototype = {
@@ -756,9 +756,9 @@ Measurement.prototype = {
         return this;
     },
 
-    setTimestamp: function(timestamp) {
-        assert(_.isNumericString(timestamp), "Numeric string is expected :" + timestamp);
-        this.timestamp = timestamp;
+    setTimestamp: function(time) {
+        assert(_.isNumericString(time), "Numeric string is expected :" + time);
+        this.time = time;
     }
 };
 
@@ -956,7 +956,7 @@ LineSerializer = Serializer.extend(
                     };
                 })());
 
-                if (timestamp = measurement.timestamp) {
+                if (timestamp = measurement.time) {
                     line += " " + timestamp;
                 }
 
@@ -2310,7 +2310,7 @@ XhrHttp = Http.extend(
                 });
 
                 try {
-                    xhr.open(method, url, true);                    
+                    xhr.open(method, url, true);
                 } catch (err) {
                     reject(err);
                     return
@@ -3869,14 +3869,14 @@ exports.createHttpClient = function(config) {
     // use line serializer
     client.injectSerializer(new LineSerializer());
 
-    
 
-    
-    
+
+
+
     //use http lib
     client.injectHttp(new XhrHttp());
-    
-    
+
+
 
     // use base election strategy
     // with http ping option
@@ -3892,13 +3892,13 @@ exports.createHttpClient = function(config) {
 
     ping = new HttpPing(pingConfig);
 
-    
 
-    
-    
+
+
+
     ping.injectHttp(new XhrHttp());
-    
-    
+
+
 
     elector = new BaseElector(hosts, electorConfig);
     elector.injectPing(ping);

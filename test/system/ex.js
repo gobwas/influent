@@ -48,7 +48,7 @@ describe("System tests", function() {
             })
             .then(function(client) {
                 return client
-                    .write({ key: "sut", fields: { value: "abcd" }, timestamp: 0 })
+                    .write({ key: "sut", fields: { value: "abcd" }, time: 0 })
                     .then(function() {
                         return client.query("select * from sut");
                     })
@@ -88,7 +88,7 @@ describe("System tests", function() {
                     .write({
                         key: "sutudp",
                         value: "hello_udp",
-                        timestamp: 0
+                        time: 0
                     })
                     .then(sleep(5))
                     .then(function() {
@@ -116,7 +116,7 @@ describe("System tests", function() {
             })
             .then(function(client) {
                 return client
-                    .write({ key: "sut", fields: { value: "abcd" }, timestamp: 0 })
+                    .write({ key: "sut", fields: { value: "abcd" }, time: 0 })
                     .catch(function(err) {
                         expect(err.message).equal("InfluxDB unauthorized user");
                     });
