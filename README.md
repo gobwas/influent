@@ -49,7 +49,7 @@ influent
 
         // super simple point
         client.write({ key: "myseries", value: 10 });
-            
+
         // more explicit point
         client
             .write({
@@ -60,7 +60,7 @@ influent
                 fields: {
                     some_field: 10
                 },
-                timestamp: Date.now()
+                time: Date.now()
             })
             .then(function() {
                 // ...
@@ -95,14 +95,14 @@ client
         fields: {
             // this will be written as 10i, and saved as int64 10 into InfluxDB
             some_field: new influent.Value(10, influent.type.INT64),
-            
+
             // another way to do the same thing, is to pass this value description
             another_field: {
                 data: 10,
                 type: influent.type.INT64
             }
         },
-        timestamp: Date.now()
+        time: Date.now()
     });
 ```
 
@@ -122,17 +122,17 @@ The `config` should have structure like:
         host:     string
         port:     number
     }
-    
+
     // or
-    
+
     server: [ serverA... serverN ]
-    
+
     username: string
     password: string
     database: string
-    
+
     // optional:
-    
+
     precision:  enum[n, u, ms, s, m, h]
     epoch:      enum[n, u, ms, s, m, h]
     max_batch:  number
@@ -157,13 +157,13 @@ The `config` should have structure like:
         host:     string
         port:     number
     }
-    
+
     // or
-    
+
     server: [ serverA... serverN ]
-    
+
     // optional:
-    
+
     max_batch:  number
     safe_limit: number
 }
@@ -214,7 +214,7 @@ Where options could be like:
     username:   string,
     password:   string,
     database:   string,
-    
+
     max_batch:  number,
     chunk_size: number,
     precision:  enum[n, u, ms, s, m, h]
@@ -306,7 +306,7 @@ When measurement is `Object`, it should have structure like:
     tags: {
         tagName: string
     },
-    timestamp: number | string | Date
+    time: number | string | Date
 }
 ```
 
@@ -406,9 +406,9 @@ ______________________
 ##### `new influent.Measurement(key: string)`
 ##### `measurement.addTag(key: string, value: string)`
 ##### `measurement.addField(key: string, value: influent.Value)`
-##### `measurement.setTimestamp(timestamp: string)`
+##### `measurement.setTimestamp(time: string)`
 
-Sets timestamp to the measurement. Using numeric `string`, [cause it make sense](https://github.com/gobwas/influent/pull/1#issuecomment-137720514) 
+Sets time stamp for the measurement. Using numeric `string`, [cause it make sense](https://github.com/gobwas/influent/pull/1#issuecomment-137720514)
 on a big numbers with precision in nanoseconds.
 
 ______________________

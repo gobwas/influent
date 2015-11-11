@@ -171,7 +171,7 @@ describe("DecoratorClient", function() {
             // when
             result = instance.write([{
                 key: "key",
-                timestamp: stamp
+                time: stamp
             }]);
 
             // then
@@ -182,7 +182,7 @@ describe("DecoratorClient", function() {
 
                 measurement = writeStub.firstCall.args[0][0];
 
-                expect(measurement.timestamp).equal(stamp.toString());
+                expect(measurement.time).equal(stamp.toString());
             });
         });
 
