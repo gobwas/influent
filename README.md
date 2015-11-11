@@ -146,7 +146,6 @@ ______________________
 ### `influent.createUdpClient(config: Object)` -> `Promise[influent.DecoratorClient[influent.UdpClient]]`
 
 Default factory for creating udp client. Creates `influent.DecoratorClient` instance, with `influent.UdpClient` inside.
-This method makes `client.ping()`, to sure that connection is OK. Ping in UDP connection is impossible, so it used via `exec ping ...`.
 
 The `config` should have structure like:
 
@@ -327,6 +326,12 @@ Represents strategy of electing host to send request.
 
 ______________________
 
+### Class: `influent.RoundRobinElector`
+
+Round robin strategy of host election.
+
+______________________
+
 ### Class: `influent.BaseElector`
 
 Base strategy of election. Uses `influent.Ping` to check health.
@@ -451,6 +456,8 @@ Be sure, that you have at least these global objects and object methods:
 + `Object.keys`;
 + `Array.forEach`;
 + `XMLHttpRequest`.
+
+Some Node.js specific classes are excluded from the `influent` API browser build.
 
 ## Compatibility
 

@@ -1,19 +1,20 @@
-var Client          = require("./lib/client/client").Client;
-var NetClient       = require("./lib/client/net").NetClient;
-var HttpClient      = require("./lib/client/http").HttpClient;
-var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
-var Serializer      = require("./lib/serializer/serializer").Serializer;
-var LineSerializer  = require("./lib/serializer/line").LineSerializer;
-var Value           = require("./lib/value").Value;
-var Measurement     = require("./lib/measurement").Measurement;
-var Http            = require("hurl/lib/http").Http;
-var XhrHttp         = require("hurl/lib/xhr").XhrHttp;
-var Host            = require("./lib/client/host").Host;
-var Elector         = require("./lib/client/elector/elector").Elector;
-var BaseElector     = require("./lib/client/elector/base").BaseElector;
-var StubElector     = require("./lib/client/elector/stub").StubElector;
-var HttpPing        = require("./lib/client/elector/ping/http").HttpPing;
-var type            = require("./lib/type");
+var Client            = require("./lib/client/client").Client;
+var NetClient         = require("./lib/client/net").NetClient;
+var HttpClient        = require("./lib/client/http").HttpClient;
+var DecoratorClient   = require("./lib/client/decorator").DecoratorClient;
+var Serializer        = require("./lib/serializer/serializer").Serializer;
+var LineSerializer    = require("./lib/serializer/line").LineSerializer;
+var Value             = require("./lib/value").Value;
+var Measurement       = require("./lib/measurement").Measurement;
+var Http              = require("hurl/lib/http").Http;
+var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
+var Host              = require("./lib/client/host").Host;
+var Elector           = require("./lib/client/elector/elector").Elector;
+var BaseElector       = require("./lib/client/elector/base").BaseElector;
+var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
+var StubElector       = require("./lib/client/elector/stub").StubElector;
+var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
+var type              = require("./lib/type");
 
 //[ if BUILD_TARGET == "node" ]
 var UdpClient = require("./lib/client/udp").UdpClient;
@@ -26,21 +27,22 @@ var CmdPing   = require("./lib/client/elector/ping/cmd").CmdPing;
 var assert = require("assert");
 var _ = require("./lib/utils");
 
-exports.type           = type;
-exports.Client         = Client;
-exports.NetClient      = NetClient;
-exports.HttpClient     = HttpClient;
-exports.Http           = Http;
-exports.XhrHttp        = XhrHttp;
-exports.Serializer     = Serializer;
-exports.LineSerializer = LineSerializer;
-exports.Value          = Value;
-exports.Measurement    = Measurement;
-exports.Host           = Host;
-exports.Elector        = Elector;
-exports.BaseElector    = BaseElector;
-exports.StubElector    = StubElector;
-exports.HttpPing       = HttpPing;
+exports.type              = type;
+exports.Client            = Client;
+exports.NetClient         = NetClient;
+exports.HttpClient        = HttpClient;
+exports.Http              = Http;
+exports.XhrHttp           = XhrHttp;
+exports.Serializer        = Serializer;
+exports.LineSerializer    = LineSerializer;
+exports.Value             = Value;
+exports.Measurement       = Measurement;
+exports.Host              = Host;
+exports.Elector           = Elector;
+exports.BaseElector       = BaseElector;
+exports.RoundRobinElector = RoundRobinElector;
+exports.StubElector       = StubElector;
+exports.HttpPing          = HttpPing;
 
 //[ if BUILD_TARGET == "node" ]
 exports.UdpClient = UdpClient;
@@ -107,16 +109,10 @@ exports.createUdpClient = function(config) {
     // with http ping option
     election = config.election;
     if (_.isObject(election)) {
-        electorConfig = _.pick(election, Object.keys(BaseElector.DEFAULTS));
-
-        pingOpt = election.ping;
-        if (_.isObject(pingOpt)) {
-            pingConfig = _.pick(pingOpt, Object.keys(CmdPing.DEFAULTS));
-        }
+        electorConfig = _.pick(election, Object.keys(RoundRobinElector.DEFAULTS));
     }
 
-    elector = new BaseElector(hosts, electorConfig);
-    elector.injectPing(new CmdPing(pingConfig));
+    elector = new RoundRobinElector(hosts, electorConfig);
 
     // use elector
     client.injectElector(elector);
