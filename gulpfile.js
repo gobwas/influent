@@ -130,7 +130,6 @@ gulp.task("browser", function() {
     var uglify = require("gulp-uglify");
     var literalify = require("literalify");
     var umd = require("gulp-umd");
-    var zopfli = require("gulp-zopfli");
     var path = require("path");
     var nunjucksify = require("./build/transform/nunjucks").factory;
     var bundler;
@@ -172,9 +171,6 @@ gulp.task("browser", function() {
         .pipe(gulp.dest("./dist"))
         .pipe(uglify())
         .pipe(rename({ extname: ".min.js" }))
-        .pipe(gulp.dest("./dist"))
-        .pipe(zopfli({ format: "gzip" }))
-        .pipe(rename({ extname: ".gz" }))
         .pipe(gulp.dest("./dist"));
 
 });
