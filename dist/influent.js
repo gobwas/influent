@@ -53,7 +53,7 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"../utils":17,"assert":"assert","inherits-js":31}],2:[function(require,module,exports){
+},{"../utils":18,"assert":"assert","inherits-js":32}],2:[function(require,module,exports){
 var Client = require("./client").Client;
 var assert = require("assert");
 var Measurement = require("../measurement").Measurement;
@@ -168,7 +168,7 @@ DecoratorClient = Client.extend(
 
 exports.DecoratorClient = DecoratorClient;
 
-},{"../measurement":12,"../type":16,"../utils":17,"../value":18,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
+},{"../measurement":13,"../type":17,"../utils":18,"../value":19,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 var Ping = require("./ping/ping").Ping;
 var _ = require("../../utils");
@@ -197,6 +197,10 @@ BaseElector = Elector.extend(
 
         getHost: function() {
             var self = this;
+
+            if (this.hosts.length == 1) {
+                return Promise.resolve(this.hosts[0]);
+            }
 
             // prevent long queue
             if (this.isPending) {
@@ -236,17 +240,25 @@ BaseElector = Elector.extend(
 
 exports.BaseElector = BaseElector;
 
-},{"../../utils":17,"./elector":4,"./ping/ping":6,"assert":"assert"}],4:[function(require,module,exports){
+},{"../../utils":18,"./elector":4,"./ping/ping":6,"assert":"assert"}],4:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../utils");
+var Host = require("../host").Host;
 var assert = require("assert");
 
 /**
  * @abstract
  */
 function Elector(hosts, options) {
-    this.options = _.extend({}, this.constructor.DEFAULTS, options);
+    assert(_.isArray(hosts), "Array is expected");
+    assert(hosts.length > 0, "Hosts should be not empty");
+    hosts.forEach(function(host) {
+        assert(host instanceof Host, "Host is expected");
+    });
+
     this.hosts = hosts;
+
+    this.options = _.extend({}, this.constructor.DEFAULTS, options);
     this.lastHealthCheck = -1;
     this.activeHost = null;
 }
@@ -272,7 +284,7 @@ Elector.extend = function(p, s) {
 
 exports.Elector = Elector;
 
-},{"../../utils":17,"assert":"assert","inherits-js":31}],5:[function(require,module,exports){
+},{"../../utils":18,"../host":9,"assert":"assert","inherits-js":32}],5:[function(require,module,exports){
 var Ping = require("./ping").Ping;
 var Host = require("../../host").Host;
 var _ = require("../../../utils");
@@ -318,7 +330,7 @@ HttpPing = Ping.extend(
 
 exports.HttpPing = HttpPing;
 
-},{"../../../utils":17,"../../host":8,"./ping":6,"assert":"assert","hurl/lib/http":25}],6:[function(require,module,exports){
+},{"../../../utils":18,"../../host":9,"./ping":6,"assert":"assert","hurl/lib/http":26}],6:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../../utils");
 var assert = require("assert");
@@ -347,31 +359,55 @@ Ping.DEFAULTS = {};
 
 exports.Ping = Ping;
 
-},{"../../../utils":17,"assert":"assert","inherits-js":31}],7:[function(require,module,exports){
+},{"../../../utils":18,"assert":"assert","inherits-js":32}],7:[function(require,module,exports){
 var Elector = require("./elector").Elector;
-var Host = require("../host").Host;
-var StubElector;
+
+/**
+ * @class RoundRobinElector
+ * @extends Elector
+ */
+var RoundRobinElector = Elector.extend(
+    /**
+     * @lends RoundRobinElector.prototype
+     */
+    {
+        constructor: function() {
+            Elector.prototype.constructor.apply(this, arguments);
+            this.index = 0;
+        },
+
+        getHost: function(hosts) {
+            var host = this.hosts[this.index];
+            this.index = (this.index + 1) % this.hosts.length;
+
+            return Promise.resolve(host);
+        }
+    }
+);
+
+exports.RoundRobinElector = RoundRobinElector;
+
+},{"./elector":4}],8:[function(require,module,exports){
+var Elector = require("./elector").Elector;
 
 /**
  * @class StubElector
  * @extends Elector
  */
-StubElector = Elector.extend(
+var StubElector = Elector.extend(
     /**
      * @lends StubElector.prototype
      */
     {
         getHost: function(hosts) {
-            var host = hosts[0];
-            assert(host instanceof Host, "Host is expected");
-            return Promise.resolve(host);
+            return Promise.resolve(this.hosts[0]);
         }
     }
 );
 
 exports.StubElector = StubElector;
 
-},{"../host":8,"./elector":4}],8:[function(require,module,exports){
+},{"./elector":4}],9:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./../utils");
 
@@ -400,7 +436,7 @@ Host.prototype = {
 
 exports.Host = Host;
 
-},{"./../utils":17,"assert":"assert"}],9:[function(require,module,exports){
+},{"./../utils":18,"assert":"assert"}],10:[function(require,module,exports){
 var NetClient = require("./net").NetClient;
 var Info = require("./info").Info;
 var Measurement = require("../measurement").Measurement;
@@ -654,7 +690,7 @@ HttpClient = NetClient.extend(
 
 exports.HttpClient = HttpClient;
 
-},{"../measurement":12,"../precision":13,"../utils":17,"./host":8,"./info":10,"./net":11,"assert":"assert","hurl/lib/http":25}],10:[function(require,module,exports){
+},{"../measurement":13,"../precision":14,"../utils":18,"./host":9,"./info":11,"./net":12,"assert":"assert","hurl/lib/http":26}],11:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("../utils");
 
@@ -675,7 +711,7 @@ Info.prototype.setDate = function(date) {
 
 exports.Info = Info;
 
-},{"../utils":17,"assert":"assert"}],11:[function(require,module,exports){
+},{"../utils":18,"assert":"assert"}],12:[function(require,module,exports){
 var Client = require("./client").Client;
 var Host = require("./host").Host;
 var Elector = require("./elector/elector").Elector;
@@ -711,7 +747,7 @@ NetClient = Client.extend(
 
 exports.NetClient = NetClient;
 
-},{"../serializer/serializer":15,"../utils":17,"./client":1,"./elector/elector":4,"./host":8,"assert":"assert"}],12:[function(require,module,exports){
+},{"../serializer/serializer":16,"../utils":18,"./client":1,"./elector/elector":4,"./host":9,"assert":"assert"}],13:[function(require,module,exports){
 var Value  = require("./value").Value;
 var assert = require("assert");
 var _      = require("./utils");
@@ -764,7 +800,7 @@ Measurement.prototype = {
 
 exports.Measurement = Measurement;
 
-},{"./utils":17,"./value":18,"assert":"assert"}],13:[function(require,module,exports){
+},{"./utils":18,"./value":19,"assert":"assert"}],14:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
@@ -806,7 +842,7 @@ exports.assert = function(precision, nullable, msg) {
     assert((nullable ? precision == null : false) || values.indexOf(precision) != -1, msg.replace("%values%", values.join(",")));
 };
 
-},{"./utils":17,"assert":"assert"}],14:[function(require,module,exports){
+},{"./utils":18,"assert":"assert"}],15:[function(require,module,exports){
 var Serializer      = require("./serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var STRING      = require("../type").STRING;
@@ -968,7 +1004,7 @@ LineSerializer = Serializer.extend(
 
 exports.LineSerializer = LineSerializer;
 
-},{"../measurement":12,"../type":16,"../utils":17,"./serializer":15,"assert":"assert"}],15:[function(require,module,exports){
+},{"../measurement":13,"../type":17,"../utils":18,"./serializer":16,"assert":"assert"}],16:[function(require,module,exports){
 var inherits = require("inherits-js");
 
 /**
@@ -995,7 +1031,7 @@ Serializer.extend = function(p, s) {
 
 exports.Serializer = Serializer;
 
-},{"inherits-js":31}],16:[function(require,module,exports){
+},{"inherits-js":32}],17:[function(require,module,exports){
 var _ = require("./utils");
 
 var STRING  = 0;
@@ -1044,7 +1080,7 @@ exports.INT64 = INT64;
 exports.BOOLEAN = BOOLEAN;
 exports.TYPE = TYPE;
 
-},{"./utils":17}],17:[function(require,module,exports){
+},{"./utils":18}],18:[function(require,module,exports){
 var assert = require("assert");
 
 exports.noop = function() {};
@@ -1213,7 +1249,7 @@ exports.any = function(promises) {
 };
 
 
-},{"assert":"assert"}],18:[function(require,module,exports){
+},{"assert":"assert"}],19:[function(require,module,exports){
 var TYPE   = require("./type").TYPE;
 var assert = require("assert");
 
@@ -1234,7 +1270,7 @@ function Value(data, type) {
 
 exports.Value = Value;
 
-},{"./type":16,"assert":"assert"}],19:[function(require,module,exports){
+},{"./type":17,"assert":"assert"}],20:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1259,14 +1295,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],21:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1856,7 +1892,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":20,"_process":22,"inherits":19}],22:[function(require,module,exports){
+},{"./support/isBuffer":21,"_process":23,"inherits":20}],23:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1949,7 +1985,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 var inherits = require("inherits-js");
 var HttpError;
 
@@ -1986,7 +2022,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":31}],24:[function(require,module,exports){
+},{"inherits-js":32}],25:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -2007,7 +2043,7 @@ TimeoutHttpError = HttpError.extend(
 
 exports.TimeoutHttpError = TimeoutHttpError;
 
-},{"../error":23}],25:[function(require,module,exports){
+},{"../error":24}],26:[function(require,module,exports){
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
@@ -2111,7 +2147,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":26,"assert":"assert","debug":28,"events":"events","inherits-js":31}],26:[function(require,module,exports){
+},{"./utils":27,"assert":"assert","debug":29,"events":"events","inherits-js":32}],27:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -2181,7 +2217,7 @@ exports.uniqueId = function(key) {
     return ++counter;
 };
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var Http      = require("./http").Http,
     _         = require("./utils"),
     HttpError = require("./error").HttpError,
@@ -2379,7 +2415,7 @@ XhrHttp = Http.extend(
 
 exports.XhrHttp = XhrHttp;
 
-},{"./error":23,"./error/timeout":24,"./http":25,"./utils":26,"querystring":"querystring"}],28:[function(require,module,exports){
+},{"./error":24,"./error/timeout":25,"./http":26,"./utils":27,"querystring":"querystring"}],29:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -2549,7 +2585,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":29}],29:[function(require,module,exports){
+},{"./debug":30}],30:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -2748,7 +2784,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":30}],30:[function(require,module,exports){
+},{"ms":31}],31:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -2875,7 +2911,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -2916,7 +2952,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":33}],32:[function(require,module,exports){
+},{"./utils/extend":34}],33:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -2943,7 +2979,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -2966,7 +3002,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":32}],34:[function(require,module,exports){
+},{"./each":33}],35:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3048,7 +3084,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3475,7 +3511,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":21}],"events":[function(require,module,exports){
+},{"util/":22}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3779,43 +3815,45 @@ function isUndefined(arg) {
 }
 
 },{}],"influent":[function(require,module,exports){
-var Client          = require("./lib/client/client").Client;
-var NetClient       = require("./lib/client/net").NetClient;
-var HttpClient      = require("./lib/client/http").HttpClient;
-var DecoratorClient = require("./lib/client/decorator").DecoratorClient;
-var Serializer      = require("./lib/serializer/serializer").Serializer;
-var LineSerializer  = require("./lib/serializer/line").LineSerializer;
-var Value           = require("./lib/value").Value;
-var Measurement     = require("./lib/measurement").Measurement;
-var Http            = require("hurl/lib/http").Http;
-var XhrHttp         = require("hurl/lib/xhr").XhrHttp;
-var Host            = require("./lib/client/host").Host;
-var Elector         = require("./lib/client/elector/elector").Elector;
-var BaseElector     = require("./lib/client/elector/base").BaseElector;
-var StubElector     = require("./lib/client/elector/stub").StubElector;
-var HttpPing        = require("./lib/client/elector/ping/http").HttpPing;
-var type            = require("./lib/type");
+var Client            = require("./lib/client/client").Client;
+var NetClient         = require("./lib/client/net").NetClient;
+var HttpClient        = require("./lib/client/http").HttpClient;
+var DecoratorClient   = require("./lib/client/decorator").DecoratorClient;
+var Serializer        = require("./lib/serializer/serializer").Serializer;
+var LineSerializer    = require("./lib/serializer/line").LineSerializer;
+var Value             = require("./lib/value").Value;
+var Measurement       = require("./lib/measurement").Measurement;
+var Http              = require("hurl/lib/http").Http;
+var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
+var Host              = require("./lib/client/host").Host;
+var Elector           = require("./lib/client/elector/elector").Elector;
+var BaseElector       = require("./lib/client/elector/base").BaseElector;
+var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
+var StubElector       = require("./lib/client/elector/stub").StubElector;
+var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
+var type              = require("./lib/type");
 
 
 
 var assert = require("assert");
 var _ = require("./lib/utils");
 
-exports.type           = type;
-exports.Client         = Client;
-exports.NetClient      = NetClient;
-exports.HttpClient     = HttpClient;
-exports.Http           = Http;
-exports.XhrHttp        = XhrHttp;
-exports.Serializer     = Serializer;
-exports.LineSerializer = LineSerializer;
-exports.Value          = Value;
-exports.Measurement    = Measurement;
-exports.Host           = Host;
-exports.Elector        = Elector;
-exports.BaseElector    = BaseElector;
-exports.StubElector    = StubElector;
-exports.HttpPing       = HttpPing;
+exports.type              = type;
+exports.Client            = Client;
+exports.NetClient         = NetClient;
+exports.HttpClient        = HttpClient;
+exports.Http              = Http;
+exports.XhrHttp           = XhrHttp;
+exports.Serializer        = Serializer;
+exports.LineSerializer    = LineSerializer;
+exports.Value             = Value;
+exports.Measurement       = Measurement;
+exports.Host              = Host;
+exports.Elector           = Elector;
+exports.BaseElector       = BaseElector;
+exports.RoundRobinElector = RoundRobinElector;
+exports.StubElector       = StubElector;
+exports.HttpPing          = HttpPing;
 
 
 
@@ -3893,7 +3931,7 @@ exports.createHttpClient = function(config) {
     ping = new HttpPing(pingConfig);
 
     
-
+    
     
     
     ping.injectHttp(new XhrHttp());
@@ -3908,13 +3946,13 @@ exports.createHttpClient = function(config) {
     return wrapClient(client);
 };
 
-},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/stub":7,"./lib/client/host":8,"./lib/client/http":9,"./lib/client/net":11,"./lib/measurement":12,"./lib/serializer/line":14,"./lib/serializer/serializer":15,"./lib/type":16,"./lib/utils":17,"./lib/value":18,"assert":"assert","hurl/lib/http":25,"hurl/lib/xhr":27}],"querystring":[function(require,module,exports){
+},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/rr":7,"./lib/client/elector/stub":8,"./lib/client/host":9,"./lib/client/http":10,"./lib/client/net":12,"./lib/measurement":13,"./lib/serializer/line":15,"./lib/serializer/serializer":16,"./lib/type":17,"./lib/utils":18,"./lib/value":19,"assert":"assert","hurl/lib/http":26,"hurl/lib/xhr":28}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":34,"./encode":35}]},{},[]);
+},{"./decode":35,"./encode":36}]},{},[]);
 
 return require("influent");
 }));

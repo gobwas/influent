@@ -449,7 +449,7 @@ Enum of types.
 
 ## Notes
 
-<sup>[1](#browser)</sup>: Browser version is about 32KB minified, and 12KB gzipped.
+<sup>[1](#browser)</sup>: Browser version is about 41KB minified, and 13KB gzipped.
 **There are no polyfills in bundle for old browsers!**
 Be sure, that you have at least these global objects and object methods:
 + `Promise`;

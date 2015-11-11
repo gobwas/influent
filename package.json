@@ -50,6 +50,7 @@
     "gulp-replace": "^0.5.3",
     "gulp-uglify": "^1.2.0",
     "gulp-umd": "^0.2.0",
+    "gulp-zopfli": "^1.0.0",
     "karma": "^0.13.10",
     "karma-chrome-launcher": "^0.2.1",
     "karma-firefox-launcher": "^0.1.6",
