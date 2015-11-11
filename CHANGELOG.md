@@ -19,7 +19,10 @@ ______________________
  - `client.write(m, o)` if you using default `createHttpClient` or manually instantiated some of `DecoratorClient`;
  - `client.write([m])` if you are using `HttpClient` or `UdpClient` directly;
 + All of your `client.writeMany(m, o)` should be renamed to `client.write(m, o)`;
-+ If your where used `new Value(x)` without second parameter it will fail now. Use `influent.type.getInfluxTypeOf` for get the second argument for `Value` constructor;
++ If you where used `new Value(x)` without second parameter it will fail now. Use `influent.type.getInfluxTypeOf` for get the second argument for `Value` constructor, like so:
+```js
+	var value = new Value(x, influent.type.getInfluxTypeOf(x));
+```
 
 ### 0.4.1 (12-10-2015)
 ______________________

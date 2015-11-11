@@ -21,7 +21,6 @@ var NodeHttp  = require("hurl/lib/node").NodeHttp;
 var Udp       = require("./lib/net/udp/udp").Udp;
 var NodeUdp   = require("./lib/net/udp/node").NodeUdp;
 var CmdPing   = require("./lib/client/elector/ping/cmd").CmdPing;
-
 //[ endif ]
 
 var assert = require("assert");
@@ -49,7 +48,6 @@ exports.NodeHttp  = NodeHttp;
 exports.Udp       = Udp;
 exports.NodeUdp   = NodeUdp;
 exports.CmdPing   = CmdPing;
-
 //[ endif ]
 
 function createHost(def) {
@@ -125,7 +123,6 @@ exports.createUdpClient = function(config) {
 
     return wrapClient(client);
 };
-
 //[ endif ]
 
 exports.createHttpClient = function(config) {
@@ -143,10 +140,8 @@ exports.createHttpClient = function(config) {
     client.injectSerializer(new LineSerializer());
 
     //[ if BUILD_TARGET == "node" ]
-
     // use http lib
     client.injectHttp(new NodeHttp());
-
     //[ endif ]
 
     //[ if BUILD_TARGET == "browser" ]
@@ -171,11 +166,9 @@ exports.createHttpClient = function(config) {
     ping = new HttpPing(pingConfig);
 
     //[ if BUILD_TARGET == "node" ]
-
     ping.injectHttp(new NodeHttp());
-
     //[ endif ]
-
+    
     //[ if BUILD_TARGET == "browser" ]
     //[ js ]
     // ping.injectHttp(new XhrHttp());
