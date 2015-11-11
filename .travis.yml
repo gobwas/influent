@@ -11,9 +11,9 @@ node_js:
   - '5'
 
 before_install:
-    - wget http://ftp.us.debian.org/debian/pool/main/i/iputils/iputils-ping_20101006-1+b1_amd64.deb
-    - dpkg-deb -x iputils-ping_20101006-1+b1_amd64.deb $HOME
-    - alias ping=$HOME/bin/ping
+    #- wget http://ftp.us.debian.org/debian/pool/main/i/iputils/iputils-ping_20101006-1+b1_amd64.deb
+    #- dpkg-deb -x iputils-ping_20101006-1+b1_amd64.deb $HOME
+    #- alias ping=$HOME/bin/ping
     - wget http://influxdb.s3.amazonaws.com/influxdb_0.9.4.2_amd64.deb
     - dpkg-deb -x influxdb_0.9.4.2_amd64.deb $HOME
     - $HOME/opt/influxdb/versions/0.9.4.2/influxd --config $TRAVIS_BUILD_DIR/test/system/influxdb.conf > $HOME/influx.log 2>&1 &
