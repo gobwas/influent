@@ -36,7 +36,6 @@ exports.Http              = Http;
 exports.XhrHttp           = XhrHttp;
 exports.Serializer        = Serializer;
 exports.LineSerializer    = LineSerializer;
-exports.Value             = Value;
 exports.Measurement       = Measurement;
 exports.Host              = Host;
 exports.Elector           = Elector;

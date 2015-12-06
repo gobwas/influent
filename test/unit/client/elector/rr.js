@@ -6,7 +6,7 @@ var expect = chai.expect;
 
 
 describe("RoundRobinElector", function() {
-	var instance;
+	var instance, hosts;
 
 	beforeEach(function() {
 		hosts = Array.apply(null, new Array(4)).map(function(_, index) {
