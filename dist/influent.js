@@ -53,31 +53,20 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"../utils":18,"assert":"assert","inherits-js":32}],2:[function(require,module,exports){
+},{"../utils":18,"assert":"assert","inherits-js":31}],2:[function(require,module,exports){
 var Client = require("./client").Client;
 var assert = require("assert");
 var Measurement = require("../measurement").Measurement;
-var Value = require("../value").Value;
+var Type = require("../type").Type;
+var cast = require("../type").cast;
 var _ = require("../utils");
-var getInfluxTypeOf = require("../type").getInfluxTypeOf;
 var DecoratorClient;
 
 function addField(measurement, field, value) {
-    var type;
-
-    if (value instanceof Value) {
+    if (value instanceof Type) {
         measurement.addField(field, value);
-    } else if (_.isObject(value)) {
-        if (!_.isUndefined(value.type)) {
-            assert(_.isNumber(value.type), "Type should be a number");
-            type = value.type;
-        } else {
-            type = getInfluxTypeOf(value.data);
-        }
-
-        measurement.addField(field, new Value(value.data, type));
     } else {
-        measurement.addField(field, new Value(value, getInfluxTypeOf(value)));
+        measurement.addField(field, cast(value));
     }
 }
 
@@ -168,7 +157,7 @@ DecoratorClient = Client.extend(
 
 exports.DecoratorClient = DecoratorClient;
 
-},{"../measurement":13,"../type":17,"../utils":18,"../value":19,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
+},{"../measurement":13,"../type":17,"../utils":18,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 var Ping = require("./ping/ping").Ping;
 var _ = require("../../utils");
@@ -284,7 +273,7 @@ Elector.extend = function(p, s) {
 
 exports.Elector = Elector;
 
-},{"../../utils":18,"../host":9,"assert":"assert","inherits-js":32}],5:[function(require,module,exports){
+},{"../../utils":18,"../host":9,"assert":"assert","inherits-js":31}],5:[function(require,module,exports){
 var Ping = require("./ping").Ping;
 var Host = require("../../host").Host;
 var _ = require("../../../utils");
@@ -330,7 +319,7 @@ HttpPing = Ping.extend(
 
 exports.HttpPing = HttpPing;
 
-},{"../../../utils":18,"../../host":9,"./ping":6,"assert":"assert","hurl/lib/http":26}],6:[function(require,module,exports){
+},{"../../../utils":18,"../../host":9,"./ping":6,"assert":"assert","hurl/lib/http":25}],6:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../../utils");
 var assert = require("assert");
@@ -359,7 +348,7 @@ Ping.DEFAULTS = {};
 
 exports.Ping = Ping;
 
-},{"../../../utils":18,"assert":"assert","inherits-js":32}],7:[function(require,module,exports){
+},{"../../../utils":18,"assert":"assert","inherits-js":31}],7:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 
 /**
@@ -690,7 +679,7 @@ HttpClient = NetClient.extend(
 
 exports.HttpClient = HttpClient;
 
-},{"../measurement":13,"../precision":14,"../utils":18,"./host":9,"./info":11,"./net":12,"assert":"assert","hurl/lib/http":26}],11:[function(require,module,exports){
+},{"../measurement":13,"../precision":14,"../utils":18,"./host":9,"./info":11,"./net":12,"assert":"assert","hurl/lib/http":25}],11:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("../utils");
 
@@ -748,7 +737,7 @@ NetClient = Client.extend(
 exports.NetClient = NetClient;
 
 },{"../serializer/serializer":16,"../utils":18,"./client":1,"./elector/elector":4,"./host":9,"assert":"assert"}],13:[function(require,module,exports){
-var Value  = require("./value").Value;
+var Type   = require("./type").Type;
 var assert = require("assert");
 var _      = require("./utils");
 
@@ -784,7 +773,7 @@ Measurement.prototype = {
 
     addField: function(key, value) {
         assert(_.isString(key));
-        assert(value instanceof Value, "Value is expected");
+        assert(value instanceof Type, "Type is expected");
         assert(this.fields.hasOwnProperty(key) == false, "Field with key '" + key + "' is already set");
 
         this.fields[key] = value;
@@ -800,7 +789,7 @@ Measurement.prototype = {
 
 exports.Measurement = Measurement;
 
-},{"./utils":18,"./value":19,"assert":"assert"}],14:[function(require,module,exports){
+},{"./type":17,"./utils":18,"assert":"assert"}],14:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
@@ -843,12 +832,12 @@ exports.assert = function(precision, nullable, msg) {
 };
 
 },{"./utils":18,"assert":"assert"}],15:[function(require,module,exports){
-var Serializer      = require("./serializer").Serializer;
+var Serializer  = require("./serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
-var STRING      = require("../type").STRING;
-var BOOLEAN     = require("../type").BOOLEAN;
-var INT64       = require("../type").INT64;
-var FLOAT64     = require("../type").FLOAT64;
+var Str         = require("../type").Str;
+var Bool        = require("../type").Bool;
+var I64         = require("../type").I64;
+var F64         = require("../type").F64;
 var assert      = require("assert");
 var _           = require("../utils");
 
@@ -962,23 +951,23 @@ LineSerializer = Serializer.extend(
                             glue = ",";
                         }
 
-                        switch (value.type) {
-                            case STRING: {
+                        switch (true) {
+                            case value instanceof Str: {
                                 strValue = asString(value.data);
                                 break;
                             }
 
-                            case BOOLEAN: {
+                            case value instanceof Bool: {
                                 strValue = asBoolean(value.data);
                                 break;
                             }
 
-                            case INT64: {
+                            case value instanceof I64: {
                                 strValue = asInteger(value.data);
                                 break;
                             }
 
-                            case FLOAT64: {
+                            case value instanceof F64: {
                                 strValue = asFloat(value.data);
                                 break;
                             }
@@ -1031,56 +1020,104 @@ Serializer.extend = function(p, s) {
 
 exports.Serializer = Serializer;
 
-},{"inherits-js":32}],17:[function(require,module,exports){
+},{"inherits-js":31}],17:[function(require,module,exports){
 var _ = require("./utils");
+var assert = require("assert");
+var inherits = require("inherits-js");
 
-var STRING  = 0;
-var FLOAT64 = 1;
-var INT64   = 2;
-var BOOLEAN = 3;
+/**
+ * @class Value
+ * @constructor
+ * @abstract
+ *
+ * @param {string|number|boolean} data
+ */
+function Type(data) {
+    if (!(this instanceof Type)) {
+        throw new TypeError("Could not use type constructor without 'new' keyword");
+    }
 
-var TYPE = [
-    STRING,
-    FLOAT64,
-    INT64,
-    BOOLEAN
-];
+    this.data = data;
+}
 
-//var MAP = {};
-//MAP[STRING]  = "string";
-//MAP[FLOAT64] = "float64";
-//MAP[INT64]   = "int64";
-//MAP[BOOLEAN] = "boolean";
+Type.extend = function(p, s) {
+    return inherits(this, p, s);
+};
 
-exports.getInfluxTypeOf = function(obj) {
+/**
+ * @class Str
+ * @extends Type
+ */
+var Str = Type.extend({
+    constructor: function(s) {
+        assert(_.isString(s), "String is expected");
+        Type.prototype.constructor.call(this, s);
+    }
+});
+
+/**
+ * @class F64
+ * @extends Type
+ */
+var F64 = Type.extend({
+    constructor: function(f) {
+        assert(_.isNumber(f), "Number is expected");
+        Type.prototype.constructor.call(this, f);
+    }
+});
+
+/**
+ * @class I64
+ * @extends Type
+ */
+var I64 = Type.extend({
+    constructor: function(i) {
+        assert(_.isNumber(i), "Number is expected");
+        Type.prototype.constructor.call(this, i);
+    }
+});
+
+/**
+ * @class Bool
+ * @extends Type
+ */
+var Bool = Type.extend({
+    constructor: function(b) {
+        assert(_.isBoolean(b), "Boolean is expected");
+        Type.prototype.constructor.call(this, b);
+    }
+});
+
+function cast(obj) {
     var type = _.getTypeOf(obj);
 
     switch (type) {
         case "String": {
-            return STRING;
+            return new Str(obj);
         }
 
         case "Number": {
-            return FLOAT64;
+            return new F64(obj);
         }
 
         case "Boolean": {
-            return BOOLEAN;
+            return new Bool(obj);
         }
 
         default: {
             throw new TypeError("Could not map to the influx type: got '" + type + "'");
         }
     }
-};
+}
 
-exports.STRING = STRING;
-exports.FLOAT64 = FLOAT64;
-exports.INT64 = INT64;
-exports.BOOLEAN = BOOLEAN;
-exports.TYPE = TYPE;
+exports.cast = cast;
+exports.Type = Type;
+exports.Str = Str;
+exports.F64 = F64;
+exports.I64 = I64;
+exports.Bool = Bool;
 
-},{"./utils":18}],18:[function(require,module,exports){
+},{"./utils":18,"assert":"assert","inherits-js":31}],18:[function(require,module,exports){
 var assert = require("assert");
 
 exports.noop = function() {};
@@ -1250,27 +1287,6 @@ exports.any = function(promises) {
 
 
 },{"assert":"assert"}],19:[function(require,module,exports){
-var TYPE   = require("./type").TYPE;
-var assert = require("assert");
-
-/**
- * @class Value
- * @constructor
- * @final
- *
- * @param {string|number|boolean} data
- * @param {number} [type]
- */
-function Value(data, type) {
-    assert(TYPE.indexOf(type) != -1, "Type is unknown");
-
-    this.data = data;
-    this.type = type;
-}
-
-exports.Value = Value;
-
-},{"./type":17,"assert":"assert"}],20:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1295,14 +1311,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],21:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],22:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1892,7 +1908,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":21,"_process":23,"inherits":20}],23:[function(require,module,exports){
+},{"./support/isBuffer":20,"_process":22,"inherits":19}],22:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -1985,7 +2001,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],24:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var inherits = require("inherits-js");
 var HttpError;
 
@@ -2022,7 +2038,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":32}],25:[function(require,module,exports){
+},{"inherits-js":31}],24:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -2043,7 +2059,7 @@ TimeoutHttpError = HttpError.extend(
 
 exports.TimeoutHttpError = TimeoutHttpError;
 
-},{"../error":24}],26:[function(require,module,exports){
+},{"../error":23}],25:[function(require,module,exports){
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
@@ -2147,7 +2163,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":27,"assert":"assert","debug":29,"events":"events","inherits-js":32}],27:[function(require,module,exports){
+},{"./utils":26,"assert":"assert","debug":28,"events":"events","inherits-js":31}],26:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -2217,7 +2233,7 @@ exports.uniqueId = function(key) {
     return ++counter;
 };
 
-},{}],28:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var Http      = require("./http").Http,
     _         = require("./utils"),
     HttpError = require("./error").HttpError,
@@ -2415,7 +2431,7 @@ XhrHttp = Http.extend(
 
 exports.XhrHttp = XhrHttp;
 
-},{"./error":24,"./error/timeout":25,"./http":26,"./utils":27,"querystring":"querystring"}],29:[function(require,module,exports){
+},{"./error":23,"./error/timeout":24,"./http":25,"./utils":26,"querystring":"querystring"}],28:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -2585,7 +2601,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":30}],30:[function(require,module,exports){
+},{"./debug":29}],29:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -2784,7 +2800,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":31}],31:[function(require,module,exports){
+},{"ms":30}],30:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -2911,7 +2927,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],32:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -2952,7 +2968,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":34}],33:[function(require,module,exports){
+},{"./utils/extend":33}],32:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -2979,7 +2995,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -3002,7 +3018,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":33}],35:[function(require,module,exports){
+},{"./each":32}],34:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3084,7 +3100,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],36:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3511,7 +3527,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":22}],"events":[function(require,module,exports){
+},{"util/":21}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3821,7 +3837,10 @@ var HttpClient        = require("./lib/client/http").HttpClient;
 var DecoratorClient   = require("./lib/client/decorator").DecoratorClient;
 var Serializer        = require("./lib/serializer/serializer").Serializer;
 var LineSerializer    = require("./lib/serializer/line").LineSerializer;
-var Value             = require("./lib/value").Value;
+var Str               = require("./lib/type").Str;
+var I64               = require("./lib/type").I64;
+var F64               = require("./lib/type").F64;
+var Bool              = require("./lib/type").Bool;
 var Measurement       = require("./lib/measurement").Measurement;
 var Http              = require("hurl/lib/http").Http;
 var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
@@ -3831,14 +3850,12 @@ var BaseElector       = require("./lib/client/elector/base").BaseElector;
 var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
 var StubElector       = require("./lib/client/elector/stub").StubElector;
 var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
-var type              = require("./lib/type");
 
 
 
 var assert = require("assert");
 var _ = require("./lib/utils");
 
-exports.type              = type;
 exports.Client            = Client;
 exports.NetClient         = NetClient;
 exports.HttpClient        = HttpClient;
@@ -3854,6 +3871,10 @@ exports.BaseElector       = BaseElector;
 exports.RoundRobinElector = RoundRobinElector;
 exports.StubElector       = StubElector;
 exports.HttpPing          = HttpPing;
+exports.Str               = Str;
+exports.I64               = I64;
+exports.F64               = F64;
+exports.Bool              = Bool;
 
 
 
@@ -3946,13 +3967,13 @@ exports.createHttpClient = function(config) {
     return wrapClient(client);
 };
 
-},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/rr":7,"./lib/client/elector/stub":8,"./lib/client/host":9,"./lib/client/http":10,"./lib/client/net":12,"./lib/measurement":13,"./lib/serializer/line":15,"./lib/serializer/serializer":16,"./lib/type":17,"./lib/utils":18,"./lib/value":19,"assert":"assert","hurl/lib/http":26,"hurl/lib/xhr":28}],"querystring":[function(require,module,exports){
+},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/rr":7,"./lib/client/elector/stub":8,"./lib/client/host":9,"./lib/client/http":10,"./lib/client/net":12,"./lib/measurement":13,"./lib/serializer/line":15,"./lib/serializer/serializer":16,"./lib/type":17,"./lib/utils":18,"assert":"assert","hurl/lib/http":25,"hurl/lib/xhr":27}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":35,"./encode":36}]},{},[]);
+},{"./decode":34,"./encode":35}]},{},[]);
 
 return require("influent");
 }));
