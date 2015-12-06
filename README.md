@@ -94,13 +94,14 @@ client
         },
         fields: {
             // this will be written as 10i, and saved as int64 10 into InfluxDB
-            some_field: new influent.Value(10, influent.type.INT64),
+            i_field: new influent.I64(10),
             
-            // another way to do the same thing, is to pass this value description
-            another_field: {
-                data: 10,
-                type: influent.type.INT64
-            }
+            // implicit way to write values
+            // note that all implicit field numbers are casted to the influxdb's float64
+            
+            f_field: 10,       // is equal to new influent.F64(10)
+            s_field: "string"  // is equal to new influent.Str("string")
+            b_field: true      // is equal to new influent.Bool(true)
         },
         timestamp: Date.now()
     });

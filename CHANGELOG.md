@@ -11,7 +11,8 @@ ______________________
 #### Breaking
 
 + Renamed `influent.createClient()` to `influent.createHttpClient()`;
-+ Renamed `client.writeOne` and `client.writeMany` to `client.write(m, opts)`, where type of `m` is `Array`, and type of `opts` is `Object`. When using `DecoratorClient`, returned from `createHttpClient` or `createUdpClient` – `write` method could accept array or single measurement object.
++ Renamed `client.writeOne` and `client.writeMany` to `client.write(m, opts)`, where type of `m` is `Array`, and type of `opts` is `Object`. When using `DecoratorClient`, returned from `createHttpClient` or `createUdpClient` – `write` method could accept array or single measurement object;
++ Removed `influent.type.{INT64, FLOAT64, BOOLEAN, STRING}` and added constructors instead: `influent.{I64, F64, Bool, Str}`.
 
 #### Migration notes
 + If you used `influent.createClient` method, just rename it with `influent.createHttpClient`;
@@ -19,10 +20,7 @@ ______________________
  - `client.write(m, o)` if you using default `createHttpClient` or manually instantiated some of `DecoratorClient`;
  - `client.write([m])` if you are using `HttpClient` or `UdpClient` directly;
 + All of your `client.writeMany(m, o)` should be renamed to `client.write(m, o)`;
-+ If you where used `new Value(x)` without second parameter it will fail now. Use `influent.type.getInfluxTypeOf` for get the second argument for `Value` constructor, like so:
-```js
-	var value = new Value(x, influent.type.getInfluxTypeOf(x));
-```
++ All of your `new Value(x)` or `write({key:"a", value: { data: 10, type: influent.type.STRING }})` will fail now. Users should use OOP version of types if they want to be explicit: `new influent.Str("hello"), new influent.I64(1), new influent.F64(1.1), new influent.Bool(true)`; for implicit version with decorator client (which is used by default) – type will automatically inherited (all numbers to `F64`) – `.write({key:"a", value: 10})` will write 10 as `float64` to InfluxDB.
 
 ### 0.4.1 (12-10-2015)
 ______________________

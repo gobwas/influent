@@ -4,7 +4,10 @@ var HttpClient        = require("./lib/client/http").HttpClient;
 var DecoratorClient   = require("./lib/client/decorator").DecoratorClient;
 var Serializer        = require("./lib/serializer/serializer").Serializer;
 var LineSerializer    = require("./lib/serializer/line").LineSerializer;
-var Value             = require("./lib/value").Value;
+var Str               = require("./lib/type").Str;
+var I64               = require("./lib/type").I64;
+var F64               = require("./lib/type").F64;
+var Bool              = require("./lib/type").Bool;
 var Measurement       = require("./lib/measurement").Measurement;
 var Http              = require("hurl/lib/http").Http;
 var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
@@ -14,7 +17,6 @@ var BaseElector       = require("./lib/client/elector/base").BaseElector;
 var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
 var StubElector       = require("./lib/client/elector/stub").StubElector;
 var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
-var type              = require("./lib/type");
 
 //[ if BUILD_TARGET == "node" ]
 var UdpClient = require("./lib/client/udp").UdpClient;
@@ -27,7 +29,6 @@ var CmdPing   = require("./lib/client/elector/ping/cmd").CmdPing;
 var assert = require("assert");
 var _ = require("./lib/utils");
 
-exports.type              = type;
 exports.Client            = Client;
 exports.NetClient         = NetClient;
 exports.HttpClient        = HttpClient;
@@ -43,6 +44,10 @@ exports.BaseElector       = BaseElector;
 exports.RoundRobinElector = RoundRobinElector;
 exports.StubElector       = StubElector;
 exports.HttpPing          = HttpPing;
+exports.Str               = Str;
+exports.I64               = I64;
+exports.F64               = F64;
+exports.Bool              = Bool;
 
 //[ if BUILD_TARGET == "node" ]
 exports.UdpClient = UdpClient;

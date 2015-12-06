@@ -1,7 +1,10 @@
 var LineSerializer = require("../../../lib/serializer/line").LineSerializer;
 var Measurement = require("../../../lib/measurement").Measurement;
-var Value = require("../../../lib/value").Value;
-var type = require("../../../lib/type");
+var cast = require("../../../lib/type").cast;
+var Str = require("../../../lib/type").Str;
+var I64 = require("../../../lib/type").I64;
+var F64 = require("../../../lib/type").F64;
+var Bool = require("../../../lib/type").Bool;
 var chai   = require("chai");
 var chaiAsPromised = require("chai-as-promised");
 var expect = chai.expect;
@@ -41,7 +44,7 @@ describe("LineSerializer", function() {
             // when
             measurement = new Measurement("cpu,0 1");
             measurement.addTag("server A,1", "my, cool, server");
-            measurement.addField("value A,1", new Value("str", type.STRING));
+            measurement.addField("value A,1", new Str("str"));
             result = instance.serialize(measurement);
 
             // then
@@ -53,7 +56,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(true, type.BOOLEAN));
+            measurement.addField("field", new Bool(true));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=t");
@@ -64,7 +67,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value("str", type.STRING));
+            measurement.addField("field", new Str("str"));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=\"str\"");
@@ -75,7 +78,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(1, type.INT64));
+            measurement.addField("field", new I64(1));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=1i");
@@ -86,7 +89,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(1.1, type.FLOAT64));
+            measurement.addField("field", new F64(1.1));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=1.1");
@@ -97,7 +100,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(1, type.FLOAT64));
+            measurement.addField("field", new F64(1));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=1");
@@ -108,7 +111,7 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("field", new Value(1, type.FLOAT64));
+            measurement.addField("field", new F64(1));
             result = instance.serialize(measurement);
 
             return result.should.become("key field=1");
@@ -132,8 +135,8 @@ describe("LineSerializer", function() {
 
             // when
             measurement = new Measurement("key");
-            measurement.addField("b", new Value(1, type.FLOAT64));
-            measurement.addField("a", new Value(0, type.FLOAT64));
+            measurement.addField("b", new F64(1));
+            measurement.addField("a", new F64(0));
             result = instance.serialize(measurement);
 
             // then
@@ -146,7 +149,7 @@ describe("LineSerializer", function() {
             // when
             stamp = "1441236081554000001";
             measurement = new Measurement("key");
-            measurement.addField("a", new Value(0, type.FLOAT64));
+            measurement.addField("a", new F64(0));
             measurement.setTimestamp(stamp);
             result = instance.serialize(measurement);
 
