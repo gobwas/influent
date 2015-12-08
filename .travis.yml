@@ -8,7 +8,7 @@ addons:
 node_js:
   - '4.1'
   - '0.12'
-  - '5'
+  - '5.1.1'
 
 before_install:
     #- wget http://ftp.us.debian.org/debian/pool/main/i/iputils/iputils-ping_20101006-1+b1_amd64.deb
