@@ -69,7 +69,7 @@
   },
   "scripts": {
     "test": "gulp test",
-    "test_system": "mocha --recursive -t 7000 ./test/system",
+    "test_system": "mocha --recursive -t 10000 ./test/system",
     "task": "gulp"
   },
   "main": "./index.js"

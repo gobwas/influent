@@ -12,7 +12,9 @@ ______________________
 
 + Renamed `influent.createClient()` to `influent.createHttpClient()`;
 + Renamed `client.writeOne` and `client.writeMany` to `client.write(m, opts)`, where type of `m` is `Array`, and type of `opts` is `Object`. When using `DecoratorClient`, returned from `createHttpClient` or `createUdpClient` – `write` method could accept array or single measurement object;
-+ Removed `influent.type.{INT64, FLOAT64, BOOLEAN, STRING}` and added constructors instead: `influent.{I64, F64, Bool, Str}`.
++ Removed `influent.type.{INT64, FLOAT64, BOOLEAN, STRING}` and added constructors instead: `influent.{I64, F64, Bool, Str}`;
++ All of inner `influent.Client` implementations now receive `influent.Batch` object in `write` method and `influent.Query` in `query` method;
++ `influent.DecoratorClient` now is not inheritor of `influent.Client` – it is separate wrapper object.
 
 #### Migration notes
 + If you used `influent.createClient` method, just rename it with `influent.createHttpClient`;

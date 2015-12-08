@@ -9,6 +9,8 @@ var I64               = require("./lib/type").I64;
 var F64               = require("./lib/type").F64;
 var Bool              = require("./lib/type").Bool;
 var Measurement       = require("./lib/measurement").Measurement;
+var Batch             = require("./lib/batch").Batch;
+var Query             = require("./lib/batch").Query;
 var Http              = require("hurl/lib/http").Http;
 var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
 var Host              = require("./lib/client/host").Host;
@@ -17,6 +19,8 @@ var BaseElector       = require("./lib/client/elector/base").BaseElector;
 var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
 var StubElector       = require("./lib/client/elector/stub").StubElector;
 var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
+var consistency       = require("./lib/consistency");
+var precision         = require("./lib/precision");
 
 //[ if BUILD_TARGET == "node" ]
 var UdpClient = require("./lib/client/udp").UdpClient;
@@ -47,6 +51,20 @@ exports.Str               = Str;
 exports.I64               = I64;
 exports.F64               = F64;
 exports.Bool              = Bool;
+exports.Batch             = Batch;
+exports.Query             = Query;
+
+exports.NANOSECONDS  = precision.NANOSECONDS;
+exports.MICROSECONDS = precision.MICROSECONDS;
+exports.MILLISECONDS = precision.MILLISECONDS;
+exports.SECONDS      = precision.SECONDS;
+exports.MINUTES      = precision.MINUTES;
+exports.HOURS        = precision.HOURS;
+
+exports.ONE    = consistency.ONE;
+exports.ANY    = consistency.ANY;
+exports.ALL    = consistency.ALL;
+exports.QUORUM = consistency.QUORUM;
 
 //[ if BUILD_TARGET == "node" ]
 exports.UdpClient = UdpClient;
@@ -75,7 +93,7 @@ function resolveHosts(config) {
     return hosts;
 }
 
-function wrapClient(client) {
+function wrapClient(client, options) {
     // try connection
     return client
         .ping()
@@ -83,7 +101,7 @@ function wrapClient(client) {
             var decorator;
 
             // wrap client
-            decorator = new DecoratorClient();
+            decorator = new DecoratorClient(options);
             decorator.injectClient(client);
 
             return decorator;
@@ -92,8 +110,8 @@ function wrapClient(client) {
 
 //[ if BUILD_TARGET == "node" ]
 exports.createUdpClient = function(config) {
-    var hosts, server, client, elector,
-        election, pingOpt, electorConfig, pingConfig;
+    var hosts, client, elector,
+        election, electorConfig;
 
     assert(_.isObject(config), "Object is expected for config");
 
@@ -121,7 +139,7 @@ exports.createUdpClient = function(config) {
     // use elector
     client.injectElector(elector);
 
-    return wrapClient(client);
+    return wrapClient(client, _.pick(config, DecoratorClient.OPTIONS));
 };
 //[ endif ]
 
@@ -180,5 +198,5 @@ exports.createHttpClient = function(config) {
 
     client.injectElector(elector);
 
-    return wrapClient(client);
+    return wrapClient(client, _.pick(config, DecoratorClient.OPTIONS))
 };

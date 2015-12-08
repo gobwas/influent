@@ -5,6 +5,8 @@ var Elector = require("../../../lib/client/elector/elector").Elector;
 var Measurement = require("../../../lib/measurement").Measurement;
 var Host = require("../../../lib/client/host").Host;
 var Http = require("hurl/lib/http").Http;
+var Query = require("../../../lib/query").Query;
+var Batch = require("../../../lib/batch").Batch;
 var querystring = require("querystring");
 var expect = require("chai").expect;
 var sinon  = require("sinon");
@@ -12,14 +14,12 @@ var _      = require("lodash");
 var chance = require("chance").Chance();
 
 describe("HttpClient", function() {
-    var options, username, password, database, max_batch;
+    var options, username, password;
 
     beforeEach(function() {
         options = {
             username:  (username = chance.word()),
-            password:  (password = chance.word()),
-            database:  (database = chance.word()),
-            max_batch: (max_batch = chance.integer({ min: 2, max: 5 }))
+            password:  (password = chance.word())
         };
     });
 
@@ -58,8 +58,7 @@ describe("HttpClient", function() {
     });
 
     describe("methods", function() {
-        var instance, host, serializer, http,
-            precision, elector;
+        var instance, host, serializer, http, elector;
 
         beforeEach(function() {
             serializer = Object.create(Serializer.prototype);
@@ -78,7 +77,7 @@ describe("HttpClient", function() {
 
             it("should make request on each host", function() {
                 var host, info,
-                    getHostStub, requestStub, promise, expectations;
+                    getHostStub, requestStub, promise;
 
                 // before
                 host = new Host("http", "127.0.0.1", 8186);
@@ -88,8 +87,6 @@ describe("HttpClient", function() {
                 });
 
                 requestStub = sinon.stub(http, "request", function(url) {
-                    var err;
-
                     switch (url) {
                         case "http://127.0.0.1:8186/ping": {
                             return Promise.resolve({
@@ -131,7 +128,8 @@ describe("HttpClient", function() {
 
             it("should call serializer, getHost and then do request", function() {
                 var serializeStub, getHostStub, requestStub,
-                    line, promise;
+                    batch, line, promise,
+                    database, precision, rp, consistency;
 
                 // before
                 serializeStub = sinon.stub(serializer, "serialize", function() {
@@ -149,7 +147,16 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.write([new Measurement("a"), new Measurement("b")], { precision: (precision = "s") });
+                batch = new Batch({
+                    database:    (database = "db"),
+                    rp:          (rp = "rp"),
+                    consistency: (consistency = "one"),
+                    precision:   (precision = "s")
+                });
+                batch.add(new Measurement("a"));
+                batch.add(new Measurement("b"));
+
+                promise = instance.write(batch);
 
                 // then
                 return promise
@@ -171,94 +178,14 @@ describe("HttpClient", function() {
                                 password: password
                             },
                             query: {
-                                db: database,
-                                precision: precision
+                                db:          database,
+                                precision:   precision,
+                                consistency: consistency,
+                                rp:          rp
                             }
                         });
 
                         expect(config.data).equal("line\nline");
-                    });
-            });
-
-            it("should batch requests", function() {
-                var requestStub, line, promise, points;
-
-                // before
-                sinon.stub(serializer, "serialize", function() {
-                    return Promise.resolve("line");
-                });
-
-                sinon.stub(elector, "getHost", function() {
-                    return Promise.resolve(host);
-                });
-
-                requestStub = sinon.stub(http, "request", function() {
-                    return Promise.resolve({
-                        statusCode: 204
-                    });
-                });
-
-                // when
-                points = [
-                    new Measurement("a"),
-                    new Measurement("b"),
-                    new Measurement("c"),
-                    new Measurement("d"),
-                    new Measurement("e"),
-                    new Measurement("f"),
-                    new Measurement("g"),
-                    new Measurement("h"),
-                    new Measurement("i"),
-                    new Measurement("j")
-                ];
-
-                promise = instance.write(points);
-
-                // then
-                return promise
-                    .then(function() {
-                        expect(requestStub.callCount).equal(Math.ceil(points.length / max_batch));
-                    });
-            });
-
-            it("should batch requests by given option", function() {
-                var requestStub, line, promise, points;
-
-                // before
-                sinon.stub(serializer, "serialize", function() {
-                    return Promise.resolve("line");
-                });
-
-                sinon.stub(elector, "getHost", function() {
-                    return Promise.resolve(host);
-                });
-
-                requestStub = sinon.stub(http, "request", function() {
-                    return Promise.resolve({
-                        statusCode: 204
-                    });
-                });
-
-                // when
-                points = [
-                    new Measurement("a"),
-                    new Measurement("b"),
-                    new Measurement("c"),
-                    new Measurement("d"),
-                    new Measurement("e"),
-                    new Measurement("f"),
-                    new Measurement("g"),
-                    new Measurement("h"),
-                    new Measurement("i"),
-                    new Measurement("j")
-                ];
-
-                promise = instance.write(points, { max_batch: 5 });
-
-                // then
-                return promise
-                    .then(function() {
-                        expect(requestStub.callCount).equal(2);
                     });
             });
 
@@ -267,11 +194,10 @@ describe("HttpClient", function() {
         describe("query", function() {
 
             it("should send query", function() {
-                var epoch, chunk_size, promise, query, getHostStub, requestStub;
+                var command, database, chunk_size, epoch,
+                    promise, query, getHostStub, requestStub;
 
                 // before
-                query = chance.word();
-
                 getHostStub = sinon.stub(elector, "getHost", function() {
                     return Promise.resolve(host);
                 });
@@ -284,7 +210,12 @@ describe("HttpClient", function() {
                 });
 
                 // when
-                promise = instance.query(query, { epoch: (epoch = "s"), chunk_size: (chunk_size = 5000) });
+                query = new Query((command = chance.word()), {
+                    database:   (database = "db"),
+                    chunk_size: (chunk_size = 5000),
+                    epoch:      (epoch = "ms")
+                });
+                promise = instance.query(query);
 
                 // then
                 return promise.then(function() {
@@ -295,21 +226,18 @@ describe("HttpClient", function() {
 
                     config = requestStub.firstCall.args[1];
 
-                    // avoid to request some overhead options
-                    expect(_.omit(config, "query", "auth")).to.deep.equal({
-                        method: "GET"
-                    });
-
-                    expect(config.auth).to.deep.equal({
-                        username: username,
-                        password: password
-                    });
-
-                    expect(config.query).to.deep.equal({
-                        db: database,
-                        q:  query,
-                        epoch: epoch,
-                        chunk_size: chunk_size
+                    expect(_.omit(config, "data")).to.deep.equal({
+                        method: "GET",
+                        auth: {
+                            username: username,
+                            password: password
+                        },
+                        query: {
+                            db:         database,
+                            q:          command,
+                            epoch:      epoch,
+                            chunk_size: chunk_size
+                        }
                     });
                 });
             });

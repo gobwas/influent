@@ -6,6 +6,8 @@ var Str = require("../../../lib/type").Str;
 var F64 = require("../../../lib/type").F64;
 var I64 = require("../../../lib/type").I64;
 var Bool = require("../../../lib/type").Bool;
+var Query = require("../../../lib/query").Query;
+var Batch = require("../../../lib/batch").Batch;
 var chai = require("chai");
 var chaiAsPromised = require("chai-as-promised");
 var sinon  = require("sinon");
@@ -73,6 +75,45 @@ describe("DecoratorClient", function() {
 
     });
 
+    describe("query", function() {
+        var instance, client;
+
+        beforeEach(function() {
+            instance = new DecoratorClient(options);
+            client = Object.create(Client.prototype);
+            instance.injectClient(client);
+        });
+
+        it("should call query", function() {
+            var queryStub, promise, query,
+                command, database, epoch, chunk_size;
+
+            // before
+            queryStub = sinon.stub(client, "query", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            promise = instance.query((command = chance.word()), {
+                database:   (database = "db"),
+                epoch:      (epoch = "ms"),
+                chunk_size: (chunk_size = 10)
+            });
+
+            query = new Query(command, {
+                database:   database,
+                epoch:      epoch,
+                chunk_size: chunk_size
+            });
+
+            // then
+            return promise.then(function() {
+                expect(queryStub.callCount).equal(1);
+                expect(queryStub.firstCall.args[0]).deep.equal(query);
+            });
+        });
+    });
+
     describe("write", function() {
         var instance, client;
 
@@ -80,6 +121,74 @@ describe("DecoratorClient", function() {
             instance = new DecoratorClient(options);
             client = Object.create(Client.prototype);
             instance.injectClient(client);
+        });
+
+        it("should batch requests", function() {
+            var writeStub, promise, points;
+
+            // before
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            points = [
+                new Measurement("a"),
+                new Measurement("b"),
+                new Measurement("c"),
+                new Measurement("d"),
+
+                new Measurement("e"),
+                new Measurement("f"),
+                new Measurement("g"),
+                new Measurement("h"),
+
+                new Measurement("i"),
+                new Measurement("j")
+            ];
+
+            promise = instance.write(points, { max_batch: 4 });
+
+            // then
+            return promise
+                .then(function() {
+                    expect(writeStub.callCount).equal(3);
+                });
+        });
+
+        it("should write with given options", function() {
+            var writeStub, promise, point,
+                db, precision, rp, consistency,
+                batch;
+
+            // before
+            writeStub = sinon.stub(client, "write", function() {
+                return Promise.resolve();
+            });
+
+            // when
+            point = new Measurement("a");
+            promise = instance.write(point, {
+                database:    (db = "db"),
+                precision:   (precision = "ms"),
+                rp:          (rp = "rp"),
+                consistency: (consistency = "quorum")
+            });
+
+            batch = new Batch({
+                database:    db,
+                precision:   precision,
+                rp:          rp,
+                consistency: consistency
+            });
+            batch.add(point);
+
+            // then
+            return promise
+                .then(function() {
+                    expect(writeStub.callCount).equal(1);
+                    expect(writeStub.firstCall.args[0]).deep.equal(batch);
+                });
         });
 
         it("should return promise", function() {
@@ -91,7 +200,7 @@ describe("DecoratorClient", function() {
             });
 
             // when
-            result = instance.write([new Measurement("key")]);
+            result = instance.write(new Batch());
 
             // then
             expect(result).instanceof(Promise);
@@ -106,7 +215,7 @@ describe("DecoratorClient", function() {
             });
 
             // when
-            promise = instance.write([]);
+            promise = instance.write(new Batch());
 
             // then
             return promise
@@ -149,11 +258,12 @@ describe("DecoratorClient", function() {
             // then
             return promise
                 .then(function() {
-                    var measurement;
+                    var batch, measurement;
 
                     expect(writeStub.callCount).equal(1);
 
-                    measurement = writeStub.firstCall.args[0][0];
+                    batch = writeStub.firstCall.args[0];
+                    measurement = batch.measurements()[0];
                     expect(measurement).instanceof(Measurement);
 
                     expect(measurement.fields).deep.equal({
@@ -185,39 +295,20 @@ describe("DecoratorClient", function() {
             // when
             result = instance.write([{
                 key: "key",
+                value: 0,
                 timestamp: stamp
             }]);
 
             // then
             return result.then(function() {
-                var measurement;
+                var batch, measurement;
 
                 expect(writeStub.callCount).equal(1);
 
-                measurement = writeStub.firstCall.args[0][0];
+                batch = writeStub.firstCall.args[0];
+                measurement = batch.measurements()[0];
 
                 expect(measurement.timestamp).equal(stamp.toString());
-            });
-        });
-
-        it("should cast single measurement to array", function() {
-            var writeStub, result;
-
-            // before
-            writeStub = sinon.stub(client, "write", function() {
-                return Promise.resolve();
-            });
-
-            // when
-            result = instance.write({
-                key: "test",
-                fields: {
-                    foo: "bar"
-                }
-            });
-
-            return result.then(function() {
-                expect(writeStub.firstCall.args[0]).to.be.array;
             });
         });
 
@@ -238,7 +329,8 @@ describe("DecoratorClient", function() {
             });
 
             return result.then(function() {
-                var cast = writeStub.firstCall.args[0][0];
+                var batch = writeStub.firstCall.args[0];
+                var cast = batch.measurements()[0];
 
                 expect(cast.key).equal("test");
                 expect(cast.fields).deep.equal({

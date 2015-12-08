@@ -29,16 +29,17 @@ var influent = require('influent');
 
 influent
     .createHttpClient({
-        username: "gobwas",
-        password: "xxxx",
-        database: "mydb",
         server: [
             {
                 protocol: "http",
                 host:     "localhost",
                 port:     8086
             }
-        ]
+        ],
+        username: "gobwas",
+        password: "xxxx",
+        
+        database: "mydb"
     })
     .then(function(client) {
         client
@@ -48,7 +49,7 @@ influent
             });
 
         // super simple point
-        client.write({ key: "myseries", value: 10 });
+        client.write({ key: "myseries", value: 10 }, { database: "mydb" });
             
         // more explicit point
         client
@@ -118,28 +119,35 @@ The `config` should have structure like this:
 
 ```js
 {
+    // required
+    // --------
+    
     server: {
         protocol: string
         host:     string
         port:     number
     }
-    
     // or
-    
     server: [ serverA... serverN ]
     
     username: string
     password: string
+    
+    // optional
+    // --------
+    
     database: string
     
-    // optional:
+    // write options
+    precision:   enum[n, u, ms, s, m, h]
+    consistency: enum[one, quorum, all, any]
+    rp:          string
+    max_batch:   number
     
-    precision:  enum[n, u, ms, s, m, h]
+    // query options
     epoch:      enum[n, u, ms, s, m, h]
-    max_batch:  number
     chunk_size: number
 }
-
 ```
 
 ______________________
@@ -152,24 +160,65 @@ The `config` should have structure like:
 
 ```js
 {
+    // required
+    // --------
+    
     server: {
         protocol: string
         host:     string
         port:     number
     }
-    
     // or
-    
     server: [ serverA... serverN ]
     
-    // optional:
+    // optional
+    // --------
     
-    max_batch:  number
-    safe_limit: number
+    // write options
+    precision:   enum[n, u, ms, s, m, h] // unsupported yet
+    max_batch:   number
+    safe_limit:  number   
 }
-
 ```
 
+______________________
+
+### Class: `influent.Batch`
+
+##### `new influent.Batch([options: Object])`
+
+Where options could be:
+
+```js
+{
+    database:    string
+    precision:   enum[n, u, ms, s, m, h]
+    consistency: enum[one, quorum, all, any]
+    rp:          string
+}
+```
+
+##### `batch.add(m: influent.Measurement)`
+##### `batch.options()` -> `Object`
+##### `batch.measurements()` -> `Array[Measurement]`
+______________________
+
+### Class: `influent.Query`
+
+##### `new influent.Query(command: string[, options: Object])`
+
+Where options could be:
+
+```js
+{
+    database:   string
+    epoch:      enum[n, u, ms, s, m, h]
+    chunk_size: number
+}
+```
+
+##### `query.command()` -> `string`
+##### `query.options()` -> `Object`
 ______________________
 
 ### Class: `influent.Client`
@@ -182,11 +231,11 @@ Abstract class of InfluxDB client. Has several abstract methods:
 
 Pings host.
 
-##### `client.query(query: string[, options: Object])` -> `Promise[Object]`
+##### `client.query(query: influent.Query)` -> `Promise[Object]`
 
 Asks for data.
 
-##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
+##### `client.write(batch: influent.Batch)` -> `Promise[]`
 
 Writes measurements.
 
@@ -211,41 +260,16 @@ Where options could be like:
 
 ```js
 {
+    // required
+    // --------
+    
     username:   string,
     password:   string,
-    database:   string,
-    
-    max_batch:  number,
-    chunk_size: number,
-    precision:  enum[n, u, ms, s, m, h]
-    epoch:      enum[n, u, ms, s, m, h]
 }
 ```
 
-##### `httpClient.query(query: string[, options: Object])` -> `Promise[Object]`
-
-Options could be an object with:
-
-```js
-{
-    epoch: enum[n, u, ms, s, m, h]
-    chunk_size: number
-}
-
-```
-
-##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
-
-Options could be an object with:
-
-```js
-{
-    precision: enum[n, u, ms, s, m, h]
-    max_batch: number
-}
-
-```
-
+##### `httpClient.query(query: influent.Query)` -> `Promise[Object]`
+##### `httpClient.write(batch: influent.Batch)` -> `Promise[]`
 ##### `httpClient.injectHttp(http: hurl.Http)`
 
 Injector of http service, that is implementation of abstract `hurl.Http` class. `hurl` is just npm dependency.
@@ -256,33 +280,24 @@ ______________________
 
 Implementation of `influent.NetClient` for udp usage.
 
-##### `new influent.HttpClient(options: Object)`
+##### `new influent.UdpClient(options: Object)`
 
 Where options could be like:
 
 ```js
 {
-    max_batch:  number
+    // optional
+    // --------
+
     safe_limit: number
 }
 ```
 
-##### `httpClient.query(query: string[, options: Object])` -> `Promise[Object]`
+##### `udpClient.query(query: influent.Query)` -> `Promise[Object]`
 
 This method returns rejected `Promise`, cause there is no ability to fetch some data through udp from InfluxDB.
 
-##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
-
-Options could be an object with:
-
-```js
-{
-    max_batch:  number
-    safe_limit: number
-}
-
-```
-
+##### `udpClient.write(batch: influent.Batch)` -> `Promise[]`
 ##### `httpClient.injectUdp(http: influent.Udp)`
 
 Injector of udp service.
@@ -291,9 +306,27 @@ ______________________
 
 ### Class: `influent.DecoratorClient[T: influent.Client]`
 
-Implementation of `influent.Client` for client usability usage. Overloads abstract methods:
+Wrapper around `influent.Client` for better usability purposes.
 
-##### `decoratorClient.write(measurements: Object | influent.Measurement | Array[Object | influent.Measurement][, options: Object])` -> `Promise[]`
+##### `new DecoratorClient([options: Object])`
+
+If options are present, the could contain these optional fields:
+
+```js
+database: string
+    
+// write options
+precision:   enum[n, u, ms, s, m, h]
+consistency: enum[one, quorum, all, any]
+rp:          string
+max_batch:   number
+
+// query options
+epoch:      enum[n, u, ms, s, m, h]
+chunk_size: number
+```
+
+##### `decoratorClient.write(data: influent.Batch | Object | influent.Measurement | Array[Object | influent.Measurement][, options: Object])` -> `Promise[]`
 
 When measurement is `Object`, it should have structure like:
 
@@ -405,9 +438,27 @@ Line protocol implementation of `influent.Serializer`.
 
 ______________________
 
-### Class: `influent.Value`
+### Class: `influent.Type`
 
-##### `new influent.Value(data: string | number | boolean[, type: one of influx.type.TYPE)`
+______________________
+
+### Class: `influent.I64`
+##### `new influent.I64(data: number)`
+
+______________________
+
+### Class: `influent.F64`
+##### `new influent.F64(data: number)`
+
+______________________
+
+### Class: `influent.Bool`
+##### `new influent.Bool(data: boolean)`
+
+______________________
+
+### Class: `influent.Str`
+##### `new influent.Str(data: string)`
 
 ______________________
 
@@ -437,20 +488,6 @@ Represents `client.ping()` meta information.
 ##### `new influent.Info()`
 
 ______________________
-
-### `influent.type`
-
-The type subpackage of influent.
-
-##### `type.TYPE`
-
-Enum of types.
-
-##### `type.FLOAT64`
-##### `type.INT64`
-##### `type.BOOLEAN`
-##### `type.STRING`
-##### `type.getInfluxTypeOf(obj: *)` -> one of `type.TYPE`
 
 ## Notes
 

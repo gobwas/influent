@@ -10,6 +10,90 @@ root.influent = factory();
 var require;
 require=(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var inherits = require("inherits-js");
+var _ = require("./utils");
+var assert = require("assert");
+var Measurement = require("./measurement").Measurement;
+var precision = require("./precision");
+var consistency = require("./consistency");
+var Batch;
+
+/**
+ * @class Batch
+ * @constructor
+ */
+Batch = function(attrs) {
+    if (!_.isUndefined(attrs)) {
+        assert(_.isObject(attrs), "Object is expected");
+
+        var db = attrs.database;
+        if (!_.isUndefined(db)) {
+            assert(_.isString(db), "String is expected");
+            this.database = db;
+        }
+
+        var rp = attrs.rp;
+        if (!_.isUndefined(rp)) {
+            assert(_.isString(rp), "String is expected");
+            this.rp = rp;
+        }
+
+        var p = attrs.precision;
+        if (!_.isUndefined(p)) {
+            assert(_.isString(p), "String is expected");
+            assert(precision.isValid(p), "precision is expected to be one of " + precision.VALUES);
+            this.precision = p;
+        }
+
+        var c = attrs.consistency;
+        if (!_.isUndefined(c)) {
+            assert(_.isString(c), "String is expected");
+            assert(consistency.isValid(c), "consistency is expected to be one of " + consistency.VALUES);
+            this.consistency = c;
+        }
+    }
+
+    this.list = [];
+};
+
+Batch.prototype = {
+    constructor: Batch,
+
+    add: function(measurement) {
+        assert(measurement instanceof Measurement, "Measurement is expected");
+        this.list.push(measurement);
+    },
+
+    measurements: function() {
+        return this.list;
+    },
+
+    options: function() {
+        var self = this;
+
+        return [
+            "database",
+            "precision",
+            "rp",
+            "consistency"
+        ].reduce(function(result, attr) {
+            var value = self[attr];
+            if (!_.isUndefined(value)) {
+                result[attr] = value;
+            }
+
+            return result;
+        }, {});
+    }
+};
+
+Batch.extend = function(p, s) {
+    return inherits(this, p, s);
+};
+
+exports.Batch = Batch;
+
+},{"./consistency":14,"./measurement":15,"./precision":16,"./utils":21,"assert":"assert","inherits-js":34}],2:[function(require,module,exports){
+var inherits = require("inherits-js");
 var _ = require("../utils");
 var assert = require("assert");
 
@@ -53,12 +137,16 @@ Client.extend = function(p, s) {
 
 exports.Client = Client;
 
-},{"../utils":18,"assert":"assert","inherits-js":31}],2:[function(require,module,exports){
+},{"../utils":21,"assert":"assert","inherits-js":34}],3:[function(require,module,exports){
 var Client = require("./client").Client;
 var assert = require("assert");
 var Measurement = require("../measurement").Measurement;
 var Type = require("../type").Type;
 var cast = require("../type").cast;
+var precision = require("../precision");
+var consistency = require("../consistency");
+var Query = require("../query").Query;
+var Batch = require("../batch").Batch;
 var _ = require("../utils");
 var DecoratorClient;
 
@@ -96,6 +184,8 @@ function tryCastMeasurement(def) {
         });
     }
 
+    assert(Object.keys(measurement.fields).length > 0, "Measurement should have at least one field");
+
     tags = def.tags;
     if (!_.isUndefined(tags)) {
         assert(_.isObject(tags), "Tags is expected to be an object");
@@ -123,41 +213,137 @@ function tryCastMeasurement(def) {
 
 /**
  * @class DecoratorClient
- * @extends Client
+ * @constructor
  */
-DecoratorClient = Client.extend(
-    /**
-     * @lends DecoratorClient.prototype
-     */
-    {
-        injectClient: function(client) {
-            assert(client instanceof Client, "Client is expected");
-            this.client = client;
-        },
+DecoratorClient = function(options) {
+    if (_.isObject(options)) {
+        // common
+        if (!_.isUndefined(options.database)) {
+            assert(_.isString(options.database), "options.database is expected to be a string");
+        }
 
-        query: function(query) {
-            return this.client.query(query);
-        },
+        // write
+        if (!_.isUndefined(options.max_batch)) {
+            assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
+        }
 
-        ping: function() {
-            return this.client.ping();
-        },
+        if (!_.isUndefined(options.rp)) {
+            assert(_.isString(options.rp), "options.rp is expected to be a string");
+        }
 
-        write: function(measurements, options) {
-            assert(_.isArray(measurements) || _.isObject(measurements), "Array is expected");
+        if (!_.isUndefined(options.precision)) {
+            assert(_.isString(options.precision), "options.precision is expected to be a string");
+            assert(precision.isValid(options.precision), "options.precision is expected to be one of " + precision.VALUES);
+        }
 
-            if (_.isObject(measurements)) {
-                measurements = [measurements];
-            }
+        if (!_.isUndefined(options.consistency)) {
+            assert(_.isString(options.consistency), "options.consistency is expected to be a string");
+            assert(consistency.isValid(options.consistency), "options.consistency is expected to be one of " + consistency.VALUES);
+        }
 
-            return this.client.write(measurements.map(tryCastMeasurement), options);
+        // query
+        if (!_.isUndefined(options.chunk_size)) {
+            assert(_.isNumber(options.chunk_size), "options.chunk_size is expected to be a number");
+        }
+
+        if (!_.isUndefined(options.epoch)) {
+            assert(_.isString(options.epoch), "options.epoch is expected to be a string");
+            assert(precision.isValid(options.epoch), "options.epoch is expected to be one of " + precision.VALUES);
         }
     }
-);
+
+    this.options = _.extend({}, this.constructor.DEFAULTS, options || {});
+};
+
+DecoratorClient.prototype = {
+    constructor: DecoratorClient,
+
+    injectClient: function(client) {
+        assert(client instanceof Client, "Client is expected");
+        this.client = client;
+    },
+
+    ping: function() {
+        return this.client.ping();
+    },
+
+    query: function(command, options) {
+        var query;
+
+        if (command instanceof Query) {
+            query = command;
+        } else {
+            query = new Query(
+                command,
+                _.extend(
+                    _.pick(this.options, ["database", "epoch", "chunk_size"]),
+                    options
+                )
+            );
+        }
+
+        return this.client.query(query);
+    },
+
+    write: function(m, options) {
+        var self = this;
+        var batches, config, max_batch;
+
+        if (m instanceof Batch) {
+            batches = [m];
+        } else {
+            assert(_.isArray(m) || _.isObject(m), "Array or Object is expected");
+
+            config = _.extend(
+                _.pick(this.options, ["database", "precision", "rp", "consistency"]),
+                options || {}
+            );
+
+            if (_.isObject(options) && !_.isUndefined(options.max_batch)) {
+                assert(_.isNumber(options.max_batch), "options.max_batch should be a number");
+                max_batch = options.max_batch;
+            } else {
+                max_batch = this.options.max_batch;
+            }
+
+
+            batches = _.chunks((_.isObject(m) ? [m] : m).map(tryCastMeasurement), max_batch)
+                .map(function(chunk) {
+                    var batch = new Batch(config);
+
+                    chunk.forEach(batch.add.bind(batch));
+
+                    return batch;
+                });
+        }
+
+        return Promise.all(batches.map(function(batch) {
+            return self.client.write(batch);
+        }));
+    }
+};
+
+DecoratorClient.extend = function(prots, statics) {
+    return inherits(this, prots, statics);
+};
+
+DecoratorClient.DEFAULTS = {
+    max_batch: 5000
+};
+
+DecoratorClient.OPTIONS = [
+    "max_batch",
+    "database",
+    "rp",
+    "precision",
+    "consistency",
+    "chunk_size",
+    "epoch"
+];
 
 exports.DecoratorClient = DecoratorClient;
 
-},{"../measurement":13,"../type":17,"../utils":18,"./client":1,"assert":"assert"}],3:[function(require,module,exports){
+},{"../batch":1,"../consistency":14,"../measurement":15,"../precision":16,"../query":17,"../type":20,"../utils":21,"./client":2,"assert":"assert"}],4:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 var Ping = require("./ping/ping").Ping;
 var _ = require("../../utils");
@@ -229,7 +415,7 @@ BaseElector = Elector.extend(
 
 exports.BaseElector = BaseElector;
 
-},{"../../utils":18,"./elector":4,"./ping/ping":6,"assert":"assert"}],4:[function(require,module,exports){
+},{"../../utils":21,"./elector":5,"./ping/ping":7,"assert":"assert"}],5:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../utils");
 var Host = require("../host").Host;
@@ -273,7 +459,7 @@ Elector.extend = function(p, s) {
 
 exports.Elector = Elector;
 
-},{"../../utils":18,"../host":9,"assert":"assert","inherits-js":31}],5:[function(require,module,exports){
+},{"../../utils":21,"../host":10,"assert":"assert","inherits-js":34}],6:[function(require,module,exports){
 var Ping = require("./ping").Ping;
 var Host = require("../../host").Host;
 var _ = require("../../../utils");
@@ -319,7 +505,7 @@ HttpPing = Ping.extend(
 
 exports.HttpPing = HttpPing;
 
-},{"../../../utils":18,"../../host":9,"./ping":6,"assert":"assert","hurl/lib/http":25}],6:[function(require,module,exports){
+},{"../../../utils":21,"../../host":10,"./ping":7,"assert":"assert","hurl/lib/http":28}],7:[function(require,module,exports){
 var inherits = require("inherits-js");
 var _ = require("../../../utils");
 var assert = require("assert");
@@ -348,7 +534,7 @@ Ping.DEFAULTS = {};
 
 exports.Ping = Ping;
 
-},{"../../../utils":18,"assert":"assert","inherits-js":31}],7:[function(require,module,exports){
+},{"../../../utils":21,"assert":"assert","inherits-js":34}],8:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 
 /**
@@ -376,7 +562,7 @@ var RoundRobinElector = Elector.extend(
 
 exports.RoundRobinElector = RoundRobinElector;
 
-},{"./elector":4}],8:[function(require,module,exports){
+},{"./elector":5}],9:[function(require,module,exports){
 var Elector = require("./elector").Elector;
 
 /**
@@ -396,7 +582,7 @@ var StubElector = Elector.extend(
 
 exports.StubElector = StubElector;
 
-},{"./elector":4}],9:[function(require,module,exports){
+},{"./elector":5}],10:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./../utils");
 
@@ -425,11 +611,11 @@ Host.prototype = {
 
 exports.Host = Host;
 
-},{"./../utils":18,"assert":"assert"}],10:[function(require,module,exports){
+},{"./../utils":21,"assert":"assert"}],11:[function(require,module,exports){
 var NetClient = require("./net").NetClient;
 var Info = require("./info").Info;
-var Measurement = require("../measurement").Measurement;
-var Host = require("./host").Host;
+var Batch = require("../batch").Batch;
+var Query = require("../query").Query;
 var assert = require("assert");
 var Http = require("hurl/lib/http").Http;
 var _ = require("../utils");
@@ -455,19 +641,6 @@ HttpClient = NetClient.extend(
             assert(_.isObject(options),          "options is expected to be an Object");
             assert(_.isString(options.username), "options.username is expected to be a string");
             assert(_.isString(options.password), "options.password is expected to be a string");
-            assert(_.isString(options.database), "options.database is expected to be a string");
-
-            // optional options assertions
-            if (!_.isUndefined(options.max_batch)) {
-                assert(_.isNumber(options.max_batch), "options.max_batch is expected to be a number");
-            }
-
-            if (!_.isUndefined(options.chunk_size)) {
-                assert(_.isNumber(options.chunk_size), "options.chunk_size is expected to be a number");
-            }
-
-            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
-            precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
         },
 
         injectHttp: function(http) {
@@ -491,44 +664,23 @@ HttpClient = NetClient.extend(
                 });
         },
 
-        query: function(query, options) {
+        query: function(query) {
             var self = this;
 
-            assert(_.isString(query), "String is expected");
-
-            options = options || {};
-            if (!_.isUndefined(options.chunk_size)) {
-                assert(_.isNumber(options.chunk_size),  "options.chunk_size is expected to be a number");
-            }
-
-            precision.assert(options.epoch, true, "options.epoch is expected to be null or one of %values%");
-            options = _.extend({}, this.options, _.pick(options, "epoch", "chunk_size"));
+            assert(query instanceof Query, "Query is expected");
 
             return this.elector.getHost()
                 .then(function(host) {
-                    var queryObj;
-
-                    queryObj = {};
-
-                    if (_.isString(options.epoch)) {
-                        queryObj["epoch"] = options.epoch;
-                    }
-
-                    if (_.isNumber(options.chunk_size)) {
-                        queryObj["chunk_size"] = options.chunk_size;
-                    }
-
                     return self.http
                         .request(host.toString() + "/query", {
                             method: "GET",
                             auth: {
-                                username: options.username,
-                                password: options.password
+                                username: self.options.username,
+                                password: self.options.password
                             },
-                            query: _.extend(queryObj, {
-                                db: options.database,
-                                q:  query
-                            })
+                            query: _.extend({
+                                q:  query.command()
+                            }, mapOptions(query.options()))
                         })
                         .then(function(resp) {
                             switch (resp.statusCode) {
@@ -548,37 +700,18 @@ HttpClient = NetClient.extend(
                 });
         },
 
-        write: function(measurements, options) {
+        write: function(batch) {
             var self = this;
-            options = options || {};
 
-            assert(_.isArray(measurements), "Array is expected");
+            assert(batch instanceof Batch, "Batch is expected");
 
-            // allow to overwrite base max_batch
-            if (!_.isUndefined(options.max_batch)) {
-                assert(_.isNumber(options.max_batch) && options.max_batch > 0,  "options.max_batch is expected to be a number > 0");
-            }
-
-            // allow to overwrite base precision
-            precision.assert(options.precision, true, "options.precision is expected to be null or one of %values%");
-
-            // extend call options with base
-            options = _.extend({}, this.options, _.pick(options, "precision", "max_batch"));
-
-            // split measurements to `max_batch` limited parts
-            return Promise.all(
-                _
-                    .chunks(measurements, options.max_batch)
-                    .map(function(measurements) {
-                        return Promise
-                            .all(measurements.map(function(measurement) {
-                                return self.serializer.serialize(measurement);
-                            }))
-                            .then(function(lines) {
-                                return self._writeData(lines.join("\n"), options);
-                            });
-                    })
-            );
+            return Promise
+                .all(batch.measurements().map(function(measurement) {
+                    return self.serializer.serialize(measurement);
+                }))
+                .then(function(lines) {
+                    return self._writeData(lines.join("\n"), mapOptions(batch.options()));
+                });
         },
 
         _ping: function(host) {
@@ -616,23 +749,15 @@ HttpClient = NetClient.extend(
 
             return this.elector.getHost()
                 .then(function(host) {
-                    var queryObj = {};
-
-                    if (_.isString(options.precision)) {
-                        queryObj["precision"] = options.precision;
-                    }
-
                     return self.http
                         .request(host.toString() + "/write", {
                             method: "POST",
                             auth: {
-                                username: options.username,
-                                password: options.password
+                                username: self.options.username,
+                                password: self.options.password
                             },
-                            query: _.extend(queryObj, {
-                                db: options.database
-                            }),
-                            data: data
+                            query: options,
+                            data:  data
                         })
                         .then(function(resp) {
                             return new Promise(function(resolve, reject) {
@@ -666,20 +791,32 @@ HttpClient = NetClient.extend(
     {
         DEFAULTS: _.extend({}, NetClient.DEFAULTS, {
             username: null,
-            password: null,
-            database: null,
-
-            max_batch:  5000,
-            chunk_size: null,
-            precision:  null,
-            epoch:      null
+            password: null
         })
     }
 );
 
+var map = {
+    "database": "db"
+};
+function mapOptions(options) {
+    return Object.keys(options).reduce(function(result, key) {
+        var mapped = map[key];
+        var value = options[key];
+
+        if (mapped) {
+            result[mapped] = value;
+        } else {
+            result[key] = options[key];
+        }
+
+        return result;
+    }, {});
+}
+
 exports.HttpClient = HttpClient;
 
-},{"../measurement":13,"../precision":14,"../utils":18,"./host":9,"./info":11,"./net":12,"assert":"assert","hurl/lib/http":25}],11:[function(require,module,exports){
+},{"../batch":1,"../precision":16,"../query":17,"../utils":21,"./info":12,"./net":13,"assert":"assert","hurl/lib/http":28}],12:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("../utils");
 
@@ -700,7 +837,7 @@ Info.prototype.setDate = function(date) {
 
 exports.Info = Info;
 
-},{"../utils":18,"assert":"assert"}],12:[function(require,module,exports){
+},{"../utils":21,"assert":"assert"}],13:[function(require,module,exports){
 var Client = require("./client").Client;
 var Host = require("./host").Host;
 var Elector = require("./elector/elector").Elector;
@@ -736,7 +873,34 @@ NetClient = Client.extend(
 
 exports.NetClient = NetClient;
 
-},{"../serializer/serializer":16,"../utils":18,"./client":1,"./elector/elector":4,"./host":9,"assert":"assert"}],13:[function(require,module,exports){
+},{"../serializer/serializer":19,"../utils":21,"./client":2,"./elector/elector":5,"./host":10,"assert":"assert"}],14:[function(require,module,exports){
+var assert = require("assert");
+var _ = require("./utils");
+
+var ONE    = "one";
+var QUORUM = "quorum";
+var ALL    = "all";
+var ANY    = "any";
+
+var VALUES = [
+    ONE,
+    QUORUM,
+    ALL,
+    ANY
+];
+
+exports.ONE    = ONE;
+exports.QUORUM = QUORUM;
+exports.ALL    = ALL;
+exports.ANY    = ANY;
+
+exports.VALUES = VALUES;
+
+exports.isValid = function(consistency) {
+    return VALUES.indexOf(consistency) != -1;
+};
+
+},{"./utils":21,"assert":"assert"}],15:[function(require,module,exports){
 var Type   = require("./type").Type;
 var assert = require("assert");
 var _      = require("./utils");
@@ -789,18 +953,18 @@ Measurement.prototype = {
 
 exports.Measurement = Measurement;
 
-},{"./type":17,"./utils":18,"assert":"assert"}],14:[function(require,module,exports){
+},{"./type":20,"./utils":21,"assert":"assert"}],16:[function(require,module,exports){
 var assert = require("assert");
 var _ = require("./utils");
 
-var NANOSECONDS = 0;
-var MICROSECONDS = 1;
-var MILLISECONDS = 2;
-var SECONDS = 3;
-var MINUTES = 4;
-var HOURS = 5;
+var NANOSECONDS  = "n";
+var MICROSECONDS = "u";
+var MILLISECONDS = "ms";
+var SECONDS      = "s";
+var MINUTES      = "m";
+var HOURS        = "h";
 
-var PRECISION = [
+var VALUES = [
     NANOSECONDS,
     MICROSECONDS,
     MILLISECONDS,
@@ -809,29 +973,90 @@ var PRECISION = [
     HOURS
 ];
 
-var MAP = {};
-MAP[NANOSECONDS]  = "n";
-MAP[MICROSECONDS] = "u";
-MAP[MILLISECONDS] = "ms";
-MAP[SECONDS]      = "s";
-MAP[MINUTES]      = "m";
-MAP[HOURS]        = "h";
-
-exports.PRECISION = PRECISION;
 exports.NANOSECONDS = NANOSECONDS;
 exports.MICROSECONDS = MICROSECONDS;
 exports.MILLISECONDS = MILLISECONDS;
 exports.SECONDS = SECONDS;
 exports.MINUTES = MINUTES;
 exports.HOURS = HOURS;
-exports.MAP = MAP;
 
-exports.assert = function(precision, nullable, msg) {
-    var values = _.values(MAP);
-    assert((nullable ? precision == null : false) || values.indexOf(precision) != -1, msg.replace("%values%", values.join(",")));
+exports.VALUES = VALUES;
+
+exports.isValid = function(precision) {
+    return VALUES.indexOf(precision) != -1;
 };
 
-},{"./utils":18,"assert":"assert"}],15:[function(require,module,exports){
+},{"./utils":21,"assert":"assert"}],17:[function(require,module,exports){
+var inherits = require("inherits-js");
+var _ = require("./utils");
+var assert = require("assert");
+var Measurement = require("./measurement");
+var precision = require("./precision");
+var consistency = require("./consistency");
+var Query;
+
+/**
+ * @class Query
+ * @constructor
+ */
+Query = function(command, attrs) {
+    assert(_.isString(command), "String is expected");
+    this.cmd = command;
+
+    assert(_.isObject(attrs), "Object is expected");
+
+    var db = attrs.database;
+    if (!_.isUndefined(db)) {
+        assert(_.isString(db), "String is expected");
+        this.database = db;
+    }
+
+    var e = attrs.epoch;
+    if (!_.isUndefined(e)) {
+        assert(_.isString(e), "String is expected");
+        assert(precision.isValid(e), "epoch is expected to be one of " + precision.VALUES);
+        this.epoch = e;
+    }
+
+    var s = attrs.chunk_size;
+    if (!_.isUndefined(s)) {
+        assert(_.isNumber(s), "Number is expected");
+        this.chunk_size = s;
+    }
+};
+
+Query.prototype = {
+    constructor: Query,
+
+    command: function() {
+        return this.cmd;
+    },
+
+    options: function() {
+        var self = this;
+
+        return [
+            "database",
+            "epoch",
+            "chunk_size"
+        ].reduce(function(result, attr) {
+            var value = self[attr];
+            if (!_.isUndefined(value)) {
+                result[attr] = value;
+            }
+
+            return result;
+        }, {});
+    }
+};
+
+Query.extend = function(p, s) {
+    return inherits(this, p, s);
+};
+
+exports.Query = Query;
+
+},{"./consistency":14,"./measurement":15,"./precision":16,"./utils":21,"assert":"assert","inherits-js":34}],18:[function(require,module,exports){
 var Serializer  = require("./serializer").Serializer;
 var Measurement = require("../measurement").Measurement;
 var Str         = require("../type").Str;
@@ -993,7 +1218,7 @@ LineSerializer = Serializer.extend(
 
 exports.LineSerializer = LineSerializer;
 
-},{"../measurement":13,"../type":17,"../utils":18,"./serializer":16,"assert":"assert"}],16:[function(require,module,exports){
+},{"../measurement":15,"../type":20,"../utils":21,"./serializer":19,"assert":"assert"}],19:[function(require,module,exports){
 var inherits = require("inherits-js");
 
 /**
@@ -1020,7 +1245,7 @@ Serializer.extend = function(p, s) {
 
 exports.Serializer = Serializer;
 
-},{"inherits-js":31}],17:[function(require,module,exports){
+},{"inherits-js":34}],20:[function(require,module,exports){
 var _ = require("./utils");
 var assert = require("assert");
 var inherits = require("inherits-js");
@@ -1117,7 +1342,7 @@ exports.F64 = F64;
 exports.I64 = I64;
 exports.Bool = Bool;
 
-},{"./utils":18,"assert":"assert","inherits-js":31}],18:[function(require,module,exports){
+},{"./utils":21,"assert":"assert","inherits-js":34}],21:[function(require,module,exports){
 var assert = require("assert");
 
 exports.noop = function() {};
@@ -1286,7 +1511,7 @@ exports.any = function(promises) {
 };
 
 
-},{"assert":"assert"}],19:[function(require,module,exports){
+},{"assert":"assert"}],22:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1311,14 +1536,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],20:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],21:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -1908,7 +2133,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":20,"_process":22,"inherits":19}],22:[function(require,module,exports){
+},{"./support/isBuffer":23,"_process":25,"inherits":22}],25:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -2001,7 +2226,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],23:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
 var inherits = require("inherits-js");
 var HttpError;
 
@@ -2038,7 +2263,7 @@ HttpError = inherits(Error,
 
 exports.HttpError = HttpError;
 
-},{"inherits-js":31}],24:[function(require,module,exports){
+},{"inherits-js":34}],27:[function(require,module,exports){
 var HttpError = require("../error").HttpError,
     TimeoutHttpError;
 
@@ -2059,7 +2284,7 @@ TimeoutHttpError = HttpError.extend(
 
 exports.TimeoutHttpError = TimeoutHttpError;
 
-},{"../error":23}],25:[function(require,module,exports){
+},{"../error":26}],28:[function(require,module,exports){
 var _            = require("./utils"),
     inherits     = require("inherits-js"),
     assert       = require("assert"),
@@ -2163,7 +2388,7 @@ Http = inherits( EventEmitter,
 
 exports.Http = Http;
 
-},{"./utils":26,"assert":"assert","debug":28,"events":"events","inherits-js":31}],26:[function(require,module,exports){
+},{"./utils":29,"assert":"assert","debug":31,"events":"events","inherits-js":34}],29:[function(require,module,exports){
 function typeOf(obj) {
     return Object.prototype.toString.call(obj).replace(/\[object ([A-Z][a-z]+)\]/, "$1");
 }
@@ -2233,7 +2458,7 @@ exports.uniqueId = function(key) {
     return ++counter;
 };
 
-},{}],27:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var Http      = require("./http").Http,
     _         = require("./utils"),
     HttpError = require("./error").HttpError,
@@ -2431,7 +2656,7 @@ XhrHttp = Http.extend(
 
 exports.XhrHttp = XhrHttp;
 
-},{"./error":23,"./error/timeout":24,"./http":25,"./utils":26,"querystring":"querystring"}],28:[function(require,module,exports){
+},{"./error":26,"./error/timeout":27,"./http":28,"./utils":29,"querystring":"querystring"}],31:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -2601,7 +2826,7 @@ function localstorage(){
   } catch (e) {}
 }
 
-},{"./debug":29}],29:[function(require,module,exports){
+},{"./debug":32}],32:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -2800,7 +3025,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":30}],30:[function(require,module,exports){
+},{"ms":33}],33:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -2927,7 +3152,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],31:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 var extend = require("./utils/extend");
 
 module.exports = function(Parent, protoProps, staticProps) {
@@ -2968,7 +3193,7 @@ module.exports = function(Parent, protoProps, staticProps) {
 
     return Child;
 };
-},{"./utils/extend":33}],32:[function(require,module,exports){
+},{"./utils/extend":36}],35:[function(require,module,exports){
 /**
  * Each iterator.
  *
@@ -2995,7 +3220,7 @@ module.exports = function(obj, func, context) {
 
     return result;
 };
-},{}],33:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 var each = require("./each");
 
 /**
@@ -3018,7 +3243,7 @@ module.exports = function(to) {
 
     return to;
 };
-},{"./each":32}],34:[function(require,module,exports){
+},{"./each":35}],37:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3100,7 +3325,7 @@ module.exports = function(qs, sep, eq, options) {
   return obj;
 };
 
-},{}],35:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3527,7 +3752,7 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":21}],"events":[function(require,module,exports){
+},{"util/":24}],"events":[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3842,6 +4067,8 @@ var I64               = require("./lib/type").I64;
 var F64               = require("./lib/type").F64;
 var Bool              = require("./lib/type").Bool;
 var Measurement       = require("./lib/measurement").Measurement;
+var Batch             = require("./lib/batch").Batch;
+var Query             = require("./lib/batch").Query;
 var Http              = require("hurl/lib/http").Http;
 var XhrHttp           = require("hurl/lib/xhr").XhrHttp;
 var Host              = require("./lib/client/host").Host;
@@ -3850,6 +4077,8 @@ var BaseElector       = require("./lib/client/elector/base").BaseElector;
 var RoundRobinElector = require("./lib/client/elector/rr").RoundRobinElector;
 var StubElector       = require("./lib/client/elector/stub").StubElector;
 var HttpPing          = require("./lib/client/elector/ping/http").HttpPing;
+var consistency       = require("./lib/consistency");
+var precision         = require("./lib/precision");
 
 
 
@@ -3874,6 +4103,20 @@ exports.Str               = Str;
 exports.I64               = I64;
 exports.F64               = F64;
 exports.Bool              = Bool;
+exports.Batch             = Batch;
+exports.Query             = Query;
+
+exports.NANOSECONDS  = precision.NANOSECONDS;
+exports.MICROSECONDS = precision.MICROSECONDS;
+exports.MILLISECONDS = precision.MILLISECONDS;
+exports.SECONDS      = precision.SECONDS;
+exports.MINUTES      = precision.MINUTES;
+exports.HOURS        = precision.HOURS;
+
+exports.ONE    = consistency.ONE;
+exports.ANY    = consistency.ANY;
+exports.ALL    = consistency.ALL;
+exports.QUORUM = consistency.QUORUM;
 
 
 
@@ -3896,7 +4139,7 @@ function resolveHosts(config) {
     return hosts;
 }
 
-function wrapClient(client) {
+function wrapClient(client, options) {
     // try connection
     return client
         .ping()
@@ -3904,7 +4147,7 @@ function wrapClient(client) {
             var decorator;
 
             // wrap client
-            decorator = new DecoratorClient();
+            decorator = new DecoratorClient(options);
             decorator.injectClient(client);
 
             return decorator;
@@ -3963,16 +4206,16 @@ exports.createHttpClient = function(config) {
 
     client.injectElector(elector);
 
-    return wrapClient(client);
+    return wrapClient(client, _.pick(config, DecoratorClient.OPTIONS))
 };
 
-},{"./lib/client/client":1,"./lib/client/decorator":2,"./lib/client/elector/base":3,"./lib/client/elector/elector":4,"./lib/client/elector/ping/http":5,"./lib/client/elector/rr":7,"./lib/client/elector/stub":8,"./lib/client/host":9,"./lib/client/http":10,"./lib/client/net":12,"./lib/measurement":13,"./lib/serializer/line":15,"./lib/serializer/serializer":16,"./lib/type":17,"./lib/utils":18,"assert":"assert","hurl/lib/http":25,"hurl/lib/xhr":27}],"querystring":[function(require,module,exports){
+},{"./lib/batch":1,"./lib/client/client":2,"./lib/client/decorator":3,"./lib/client/elector/base":4,"./lib/client/elector/elector":5,"./lib/client/elector/ping/http":6,"./lib/client/elector/rr":8,"./lib/client/elector/stub":9,"./lib/client/host":10,"./lib/client/http":11,"./lib/client/net":13,"./lib/consistency":14,"./lib/measurement":15,"./lib/precision":16,"./lib/serializer/line":18,"./lib/serializer/serializer":19,"./lib/type":20,"./lib/utils":21,"assert":"assert","hurl/lib/http":28,"hurl/lib/xhr":30}],"querystring":[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":34,"./encode":35}]},{},[]);
+},{"./decode":37,"./encode":38}]},{},[]);
 
 return require("influent");
 }));

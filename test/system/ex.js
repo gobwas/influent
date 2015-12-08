@@ -116,7 +116,7 @@ describe("System tests", function() {
             })
             .then(function(client) {
                 return client
-                    .write({ key: "sut", fields: { value: "abcd" }, timestamp: 0 })
+                    .write({ key: "sut", value: "abcd" })
                     .catch(function(err) {
                         expect(err.message).equal("InfluxDB unauthorized user");
                     });
