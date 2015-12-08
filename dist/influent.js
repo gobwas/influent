@@ -306,7 +306,6 @@ DecoratorClient.prototype = {
                 max_batch = this.options.max_batch;
             }
 
-
             batches = _.chunks((_.isObject(m) ? [m] : m).map(tryCastMeasurement), max_batch)
                 .map(function(chunk) {
                     var batch = new Batch(config);
@@ -797,7 +796,7 @@ HttpClient = NetClient.extend(
 );
 
 var map = {
-    "database": "db"
+    database: "db"
 };
 function mapOptions(options) {
     return Object.keys(options).reduce(function(result, key) {
