@@ -114,7 +114,7 @@ client
 Creates `influent.DecoratorClient` instance, with `influent.HttpClient` inside.
 This method makes `client.ping()`, to sure that connection is OK.
 
-The `config` should have structure like:
+The `config` should have structure like this:
 
 ```js
 {
@@ -186,7 +186,7 @@ Pings host.
 
 Asks for data.
 
-##### `client.writeOne(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
+##### `client.write(measurements: Array[influent.Measurement][, options: Object])` -> `Promise[]`
 
 Writes measurements.
 
@@ -293,26 +293,30 @@ ______________________
 
 Implementation of `influent.Client` for client usability usage. Overloads abstract methods:
 
-##### `decoratorClient.writeOne(measurement: Object | influent.Measurement[, options: Object])` -> `Promise[]`
+##### `decoratorClient.write(measurements: Object | influent.Measurement | Array[Object | influent.Measurement][, options: Object])` -> `Promise[]`
 
 When measurement is `Object`, it should have structure like:
 
 ```js
 {
-    key: string
+    // required
+    key: string,
+    
+    // one of or both `value` or non-empty `fields` should be present
+    value: string | number | boolean | influent.Type,
     fields: {
-        fieldName: string | number | boolean | influent.Value
+        fieldName: string | number | boolean | influent.Type
     },
+    
+    // optional
     tags: {
         tagName: string
     },
+    
+    // optional
     timestamp: number | string | Date
 }
 ```
-
-##### `decoratorClient.writeMany(measurements: Array[ Object | influent.Measurement][, options: Object])` -> `Promise[]`
-
-Where `Object` is the same as for `writeOne` above.
 
 ##### `decoratorClient.injectClient(client: influent.Client)`
 
