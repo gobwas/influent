@@ -947,6 +947,8 @@ Measurement.prototype = {
     setTimestamp: function(timestamp) {
         assert(_.isNumericString(timestamp), "Numeric string is expected :" + timestamp);
         this.timestamp = timestamp;
+
+        return this;
     }
 };
 

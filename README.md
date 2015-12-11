@@ -49,7 +49,7 @@ influent
             });
 
         // super simple point
-        client.write({ key: "myseries", value: 10 }, { database: "mydb" });
+        client.write({ key: "myseries", value: 10 });
             
         // more explicit point
         client
@@ -106,6 +106,44 @@ client
         },
         timestamp: Date.now()
     });
+```
+
+## Usage without decorator
+
+When you call `influent.createAnyClient` you get a decorated client, that allows you to pass simple object 
+literals to `write` and `query`. This, of course, get some performance overhead and unnecessary object casting and type checks.
+
+You could use this way, to be more explicit:
+
+```js
+    // create client
+    var client = new HttpClient({
+        username: "gobwas",
+        password: "xxxx"
+    });
+    
+    // use line serializer
+    client.injectSerializer(new LineSerializer());
+    
+    // use http client (this is for node, XhrHttp is for browser)
+    client.injectHttp(new NodeHttp());
+    
+    // use stub elector, that always elects first host
+    client.injectElector(new StubElector([ host ]));
+
+    // create batch of points
+    var batch = new Batch({ database: "mydb" });
+    batch.add((new Measurement("key")).addField("value", 1))
+    
+    // send batch
+    client.write(batch).then(...);
+    
+    // create query object
+    var query = new Query("select * from key", { database: "my db" });
+    
+    // eval query
+    client.query(query).then(...);
+    
 ```
 
 ## API
