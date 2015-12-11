@@ -1,6 +1,6 @@
 {
   "name": "influent",
-  "version": "0.5.0-rc.7",
+  "version": "0.5.0",
   "description": "InfluxDB driver",
   "author": {
     "name": "Sergey Kamardin",

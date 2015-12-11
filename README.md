@@ -139,7 +139,7 @@ You could use this way, to be more explicit:
     client.write(batch).then(...);
     
     // create query object
-    var query = new Query("select * from key", { database: "my db" });
+    var query = new Query("select * from key", { database: "mydb" });
     
     // eval query
     client.query(query).then(...);
