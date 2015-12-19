@@ -12,6 +12,44 @@ function sleep(n) {
 
 describe("System tests", function() {
 
+    before(function() {
+        return influent
+            .createHttpClient({
+                server:{
+                    protocol: "http",
+                    host:     "localhost",
+                    port:     8086
+                },
+                username: "admin",
+                password: "admin",
+                database: "test"
+            })
+            .then(function(client) {
+                return client
+                    .query("CREATE USER admin WITH PASSWORD 'admin' WITH ALL PRIVILEGES")
+            })
+            .then(sleep(1));
+    });
+
+    after(function() {
+        return influent
+            .createHttpClient({
+                server:{
+                    protocol: "http",
+                    host:     "localhost",
+                    port:     8086
+                },
+                username: "admin",
+                password: "admin",
+                database: "test"
+            })
+            .then(function(client) {
+                return client
+                    .query("DROP USER admin")
+            })
+            .then(sleep(1));
+    });
+
     beforeEach(function() {
         return influent
             .createHttpClient({
@@ -118,8 +156,11 @@ describe("System tests", function() {
             .then(function(client) {
                 return client
                     .write({ key: "sut", value: "abcd" })
+                    .then(function() {
+                        throw new Error("not failed");
+                    })
                     .catch(function(err) {
-                        expect(err.message).equal("InfluxDB unauthorized user");
+                        expect(err.message).equal("InfluxDB unauthorized user: user not found");
                     });
             });
     });
