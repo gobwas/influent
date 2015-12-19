@@ -49,6 +49,7 @@ gulp.task("webtest", ["browser"], function() {
     var polyfiller = require("gulp-autopolyfiller");
     var fs = require("fs");
     var nunjucksify = require("./build/transform/nunjucks").factory;
+    var strictify = require("strictify");
 
     return Promise.all([
         new Promise(function(resolve, reject) {
@@ -85,6 +86,9 @@ gulp.task("webtest", ["browser"], function() {
                 BUILD_TARGET: "browser"
             }
         });
+
+        // use strict
+        bundler.transform(strictify);
 
         bundler.require(stub, { expose: "../../index.js" });
 
@@ -174,3 +178,6 @@ gulp.task("browser", function() {
         .pipe(gulp.dest("./dist"));
 
 });
+
+
+gulp.task("default", ["browser"]);
