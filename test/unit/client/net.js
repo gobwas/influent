@@ -1,6 +1,7 @@
 var Serializer = require("../../../lib/serializer/serializer").Serializer;
 var Elector = require("../../../lib/client/elector/elector").Elector;
 var Host = require("../../../lib/client/elector/elector").Host;
+var NetClient = require("../../../lib/client/net").NetClient;
 var expect = require("chai").expect;
 
 describe("NetClient", function() {
