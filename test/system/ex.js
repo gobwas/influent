@@ -30,7 +30,8 @@ describe("System tests", function() {
                     .then(function() {
                         return client.query("create database test");
                     });
-            });
+            })
+            .then(sleep(1));
     });
 
     it("should work", function() {
