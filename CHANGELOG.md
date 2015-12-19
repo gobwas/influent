@@ -1,7 +1,13 @@
 Change log
 ==========
 
-### 0.5.0 (x-11-2015)
+### 0.5.2 (7-12-2015)
+______________________
+
++ Bug fixes in browser bundles;
++ More info in error messages from http client;
+
+### 0.5.0 (7-12-2015)
 ______________________
 
 + UDP client;
