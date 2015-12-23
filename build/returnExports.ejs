@@ -8,7 +8,7 @@ module.exports = factory(<%= cjs %>);
 root.<%= namespace %> = factory(<%= global %>);
 }
 }(this, function(<%= param %>) {
-var require;
+var require, define;
 <%= contents %>
 return <%= exports %>;
 }));
